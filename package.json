@@ -8,10 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "prestart": "prisma db push",
-    "start": "next start",
+    "start": "npm run db:prepare && next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "db:prepare": "prisma validate && prisma generate && prisma db push",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed"
