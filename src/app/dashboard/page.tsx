@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth, signOut } from "@/auth";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { getVisibleCards } from "@/lib/blocks";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
     <main className="dashboardShell">
       <section className="dashboardHero">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Portal Principal</span>
           <h1>Bem-vindo, {session.user.name || session.user.email}.</h1>
           <p>

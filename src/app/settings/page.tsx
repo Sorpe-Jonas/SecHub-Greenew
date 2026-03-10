@@ -10,6 +10,7 @@ import {
   testObjectStorageConnectionAction,
   saveTelegramSettingsAction,
 } from "@/app/actions/settings-actions";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -47,6 +48,7 @@ export default async function SettingsPage() {
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Configuracoes</span>
           <h1>Integracoes e politicas globais</h1>
           <p>

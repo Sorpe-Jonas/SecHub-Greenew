@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { TicketAttachmentItem } from "@/components/support/ticket-attachment-item";
 import { TicketAttachmentForm } from "@/components/support/ticket-attachment-form";
 import { TicketManagementForm } from "@/components/support/ticket-management-form";
@@ -101,6 +102,7 @@ export default async function TicketDetailPage({
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Ticket #{ticket.id.slice(-6).toUpperCase()}</span>
           <h1>{ticket.title}</h1>
           <p>

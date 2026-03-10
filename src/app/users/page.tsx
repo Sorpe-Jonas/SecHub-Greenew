@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { UserAccessForm } from "@/components/admin/user-access-form";
 import { UserInviteForm } from "@/components/admin/user-invite-form";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -54,6 +55,7 @@ export default async function UsersPage() {
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Usuarios</span>
           <h1>Convites, roles e blocos</h1>
           <p>Crie acessos internos, acompanhe convites pendentes e ajuste os blocos disponiveis para cada usuario.</p>

@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -36,6 +37,7 @@ export default async function AuditPage() {
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Administracao</span>
           <h1>Auditoria</h1>
           <p>Logs de autenticacao, cofre, tickets, usuarios e configuracoes da plataforma.</p>

@@ -3,6 +3,7 @@ import { FinancialStatementStatus, UserRole } from "@prisma/client";
 import {
   sendFinancialReminderAction,
 } from "@/app/actions/financial-actions";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
 import { FinancialGenerateForm } from "@/components/financial/financial-generate-form";
 import { FinancialDocumentStatusForm } from "@/components/financial/financial-document-status-form";
@@ -108,6 +109,7 @@ export default async function FinancialPage() {
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Financeiro</span>
           <h1>{isClientView ? "Documentos financeiros" : "Resumo financeiro da empresa"}</h1>
           <p>

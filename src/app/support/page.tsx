@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TicketPriority, TicketStatus } from "@prisma/client";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { TicketCreateForm } from "@/components/support/ticket-create-form";
 import { canManageCompanyTickets, requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +49,7 @@ export default async function SupportPage({
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Suporte</span>
           <h1>Chamados e atendimento</h1>
           <p>

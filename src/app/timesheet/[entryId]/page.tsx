@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { notFound, redirect } from "next/navigation";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { TimeEntryForm } from "@/components/timesheet/time-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -44,6 +45,7 @@ export default async function TimesheetEntryPage({
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">TimeSheet</span>
           <h1>Editar lancamento</h1>
           <p>Voce pode ajustar horarios e descricao caso o atendimento precise de correcao manual.</p>

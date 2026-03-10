@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { VaultQuickActions } from "@/components/vault/vault-quick-actions";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -28,6 +29,7 @@ export default async function VaultPage() {
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Senhas</span>
           <h1>Cofre corporativo</h1>
           <p>

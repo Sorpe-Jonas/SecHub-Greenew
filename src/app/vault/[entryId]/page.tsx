@@ -6,6 +6,7 @@ import {
   getDecryptedPassword,
   rollbackPasswordEntryAction,
 } from "@/app/actions/password-actions";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { SecretField } from "@/components/vault/secret-field";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -46,6 +47,7 @@ export default async function VaultEntryDetailPage({
     <main className="supportShell">
       <section className="supportHeader">
         <div>
+          <BrandHomeLink />
           <span className="eyebrow">Cofre / {entry.vault.name}</span>
           <h1>{entry.title}</h1>
           <p>

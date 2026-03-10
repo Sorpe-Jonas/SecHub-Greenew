@@ -129,6 +129,11 @@ textarea:focus {
   gap: 0.45rem;
 }
 
+.brandHomeLink {
+  display: inline-flex;
+  width: fit-content;
+}
+
 .loginBrand p,
 .loginHeading p {
   color: var(--text-soft);
@@ -417,6 +422,13 @@ textarea:focus {
   padding: 2rem;
   border-radius: 28px;
   background: var(--bg-elevated);
+}
+
+.supportHeader > div,
+.dashboardHero > div,
+.moduleShell {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .supportHeader h1,

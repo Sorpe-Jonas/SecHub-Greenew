@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
+
 type ModulePlaceholderProps = {
   eyebrow: string;
   title: string;
@@ -9,6 +11,7 @@ type ModulePlaceholderProps = {
 export function ModulePlaceholder({ eyebrow, title, description }: ModulePlaceholderProps) {
   return (
     <main className="moduleShell">
+      <BrandHomeLink />
       <span className="eyebrow">{eyebrow}</span>
       <h1>{title}</h1>
       <p>{description}</p>
