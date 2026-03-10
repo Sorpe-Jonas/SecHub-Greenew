@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prestart": "prisma db push",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
