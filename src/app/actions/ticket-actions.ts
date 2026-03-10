@@ -12,7 +12,12 @@ import { redirect } from "next/navigation";
 import path from "path";
 
 import { requireCurrentUser } from "@/lib/authz";
-import { notifyTicketCreated, notifyTicketReply, sendMail } from "@/lib/notifications";
+import {
+  notifyTicketCreated,
+  notifyTicketReply,
+  notifyTicketStatusUpdated,
+  sendMail,
+} from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { uploadStorageFile } from "@/lib/storage";
 import { getTicketCatalogItem } from "@/lib/tickets";
@@ -251,6 +256,11 @@ export async function updateTicketManagementAction(
       id: true,
       companyId: true,
       title: true,
+      company: {
+        select: {
+          name: true,
+        },
+      },
       openedBy: {
         select: {
           email: true,
@@ -272,6 +282,7 @@ export async function updateTicketManagementAction(
   }
 
   let finalAssignedToId: string | null = null;
+  let finalAssignedToLabel: string | null = null;
   if (assignedToId) {
     const assignedUser = await prisma.user.findUnique({
       where: { id: assignedToId },
@@ -279,6 +290,8 @@ export async function updateTicketManagementAction(
         id: true,
         companyId: true,
         role: true,
+        name: true,
+        email: true,
       },
     });
 
@@ -287,6 +300,7 @@ export async function updateTicketManagementAction(
     }
 
     finalAssignedToId = assignedUser.id;
+    finalAssignedToLabel = assignedUser.name || assignedUser.email;
   }
 
   await prisma.ticket.update({
@@ -333,6 +347,16 @@ export async function updateTicketManagementAction(
       console.error("Falha ao enviar notificacao de atualizacao de ticket:", error);
     });
   }
+
+  await notifyTicketStatusUpdated({
+    ticketTitle: ticket.title,
+    companyName: ticket.company?.name,
+    status,
+    priority,
+    assignedTo: finalAssignedToLabel,
+  }).catch((error) => {
+    console.error("Falha ao enviar notificacao Telegram de atualizacao de ticket:", error);
+  });
 
   revalidatePath("/support");
   revalidatePath(`/support/${ticketId}`);

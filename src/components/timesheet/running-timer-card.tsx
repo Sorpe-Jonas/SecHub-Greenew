@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { startTimerAction, stopTimerAction } from "@/app/actions/timesheet-actions";
 
-function formatDuration(startedAt: string) {
+function getElapsedSeconds(startedAt: string) {
   const diff = Math.max(0, Date.now() - new Date(startedAt).getTime());
-  const totalSeconds = Math.floor(diff / 1000);
+  return Math.floor(diff / 1000);
+}
+
+function formatDurationFromSeconds(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600)
     .toString()
     .padStart(2, "0");
@@ -34,36 +37,70 @@ export function RunningTimerCard({ runningTimer, ticketOptions }: RunningTimerCa
   const [, setTick] = useState(0);
 
   useEffect(() => {
+    let notificationInterval: number | null = null;
+
+    async function syncActiveTimerNotification() {
+      if (!runningTimer || !("serviceWorker" in navigator) || !("Notification" in window)) {
+        return;
+      }
+
+      if (Notification.permission === "default") {
+        try {
+          await Notification.requestPermission();
+        } catch {
+          return;
+        }
+      }
+
+      if (Notification.permission !== "granted") {
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const ticketLabel = runningTimer.ticketId
+        ? ticketOptions.find((ticket) => ticket.id === runningTimer.ticketId)?.title || "Ticket vinculado"
+        : "Sem ticket vinculado";
+
+      const pushUpdate = () => {
+        registration.active?.postMessage({
+          type: "SHOW_ACTIVE_TIMER",
+          seconds: getElapsedSeconds(runningTimer.startedAt),
+          ticketLabel,
+        });
+      };
+
+      pushUpdate();
+      notificationInterval = window.setInterval(pushUpdate, 1000);
+    }
+
     if (!runningTimer) {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready
+          .then((registration) => {
+            registration.active?.postMessage({ type: "CLOSE_ACTIVE_TIMER" });
+          })
+          .catch(() => undefined);
+      }
       return;
     }
 
     const interval = window.setInterval(() => {
       setTick((value) => value + 1);
     }, 1000);
+    syncActiveTimerNotification().catch(() => undefined);
 
-    if ("Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission().catch(() => undefined);
-      } else if (Notification.permission === "granted") {
-        new Notification("TimeSheet em andamento", {
-          body: "O timer de atendimento foi iniciado e permanece rodando.",
-        });
+    return () => {
+      window.clearInterval(interval);
+      if (notificationInterval) {
+        window.clearInterval(notificationInterval);
       }
-    }
-
-    return () => window.clearInterval(interval);
-  }, [runningTimer]);
-
-  const counter = runningTimer ? formatDuration(runningTimer.startedAt) : "00:00:00";
-
-  const selectedTicketLabel = useMemo(() => {
-    if (!runningTimer?.ticketId) {
-      return "Sem ticket vinculado";
-    }
-
-    return ticketOptions.find((ticket) => ticket.id === runningTimer.ticketId)?.title || "Ticket vinculado";
+    };
   }, [runningTimer, ticketOptions]);
+
+  const counter = runningTimer ? formatDurationFromSeconds(getElapsedSeconds(runningTimer.startedAt)) : "00:00:00";
+  const selectedTicketLabel = runningTimer?.ticketId
+    ? ticketOptions.find((ticket) => ticket.id === runningTimer.ticketId)?.title || "Ticket vinculado"
+    : "Sem ticket vinculado";
 
   if (runningTimer) {
     return (
@@ -85,7 +122,7 @@ export function RunningTimerCard({ runningTimer, ticketOptions }: RunningTimerCa
           </div>
           <div>
             <strong>Notificacao web</strong>
-            <span>O navegador pode avisar que o timer segue ativo enquanto a aba estiver aberta.</span>
+            <span>Ao iniciar, o app publica uma notificacao persistente com o tempo correndo.</span>
           </div>
         </div>
         <form className="ticketForm" action={stopTimerAction}>

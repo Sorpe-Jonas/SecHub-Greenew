@@ -14,9 +14,10 @@ type SettingsFormProps = {
   ) => Promise<SettingsFormState>;
   fields: React.ReactNode;
   submitLabel: string;
+  pendingLabel?: string;
 };
 
-export function SettingsForm({ action, fields, submitLabel }: SettingsFormProps) {
+export function SettingsForm({ action, fields, submitLabel, pendingLabel }: SettingsFormProps) {
   const [state, formAction] = useActionState(action, initialState);
 
   return (
@@ -24,7 +25,7 @@ export function SettingsForm({ action, fields, submitLabel }: SettingsFormProps)
       {fields}
       {state.error ? <p className="errorText">{state.error}</p> : null}
       {state.success ? <p className="successText">{state.success}</p> : null}
-      <SubmitButton idleLabel={submitLabel} pendingLabel="Salvando..." />
+      <SubmitButton idleLabel={submitLabel} pendingLabel={pendingLabel || "Salvando..."} />
     </form>
   );
 }

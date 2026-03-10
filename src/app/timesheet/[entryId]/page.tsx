@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { notFound, redirect } from "next/navigation";
 
+import { deleteTimeEntryAction } from "@/app/actions/timesheet-actions";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { TimeEntryForm } from "@/components/timesheet/time-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -53,6 +54,12 @@ export default async function TimesheetEntryPage({
       </section>
 
       <section className="supportPanel">
+        <div className="panelHeader">
+          <div>
+            <span className="eyebrow">Acao</span>
+            <h2>Editar ou remover</h2>
+          </div>
+        </div>
         <TimeEntryForm
           mode="edit"
           ticketOptions={ticketOptions}
@@ -65,6 +72,12 @@ export default async function TimesheetEntryPage({
             endedAt: toDatetimeLocal(entry.endedAt),
           }}
         />
+        <form action={deleteTimeEntryAction}>
+          <input type="hidden" name="entryId" value={entry.id} />
+          <button className="dangerButton" type="submit">
+            Deletar lancamento
+          </button>
+        </form>
       </section>
     </main>
   );

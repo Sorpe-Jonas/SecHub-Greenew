@@ -9,6 +9,36 @@ type TicketContext = Ticket & {
   openedBy?: Pick<User, "name" | "email"> | null;
 };
 
+export const telegramNotificationCatalog = [
+  {
+    key: "ticket_created",
+    label: "Novo ticket",
+    description: "Envia quando um cliente abre um chamado novo.",
+  },
+  {
+    key: "ticket_reply",
+    label: "Resposta em ticket",
+    description: "Envia quando ha nova resposta publica no chamado.",
+  },
+  {
+    key: "ticket_status_updated",
+    label: "Mudanca de status",
+    description: "Envia quando status, prioridade ou responsavel do ticket mudam.",
+  },
+  {
+    key: "financial_statement_generated",
+    label: "Fechamento financeiro",
+    description: "Envia quando um fechamento mensal e gerado ou atualizado.",
+  },
+  {
+    key: "financial_reminder",
+    label: "Lembrete financeiro",
+    description: "Envia quando um lembrete de pagamento for disparado.",
+  },
+] as const;
+
+export type TelegramNotificationEvent = (typeof telegramNotificationCatalog)[number]["key"];
+
 function formatPerson(user?: Pick<User, "name" | "email"> | null) {
   if (!user) {
     return "Usuario nao identificado";
@@ -17,20 +47,13 @@ function formatPerson(user?: Pick<User, "name" | "email"> | null) {
   return user.name ? `${user.name} <${user.email}>` : user.email;
 }
 
-function buildTicketTelegramMessage(ticket: TicketContext, message: string) {
-  return [
-    "SecHub",
-    "",
-    `Ticket: ${ticket.title}`,
-    `Empresa: ${ticket.company?.name || "N/D"}`,
-    `Solicitante: ${formatPerson(ticket.openedBy)}`,
-    `Categoria: ${ticketCategoryLabels[ticket.category]}`,
-    `Subcategoria: ${ticket.subcategory}`,
-    `Prioridade: ${ticketPriorityLabels[ticket.priority]}`,
-    `Status: ${ticketStatusLabels[ticket.status]}`,
-    "",
-    message,
-  ].join("\n");
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function buildTicketEmailHtml(params: {
@@ -53,11 +76,27 @@ function buildTicketEmailHtml(params: {
           <p style="margin:0"><strong>Status:</strong> ${ticketStatusLabels[params.ticket.status]}</p>
         </div>
         <div style="padding:20px;border-radius:16px;background:#0f172a;color:#e2e8f0">
-          <p style="margin:0;white-space:pre-wrap;line-height:1.7">${params.message}</p>
+          <p style="margin:0;white-space:pre-wrap;line-height:1.7">${escapeHtml(params.message)}</p>
         </div>
       </div>
     </div>
   `;
+}
+
+function buildTelegramTemplate(params: {
+  header: string;
+  title: string;
+  lines: string[];
+  footer?: string;
+}) {
+  return [
+    "SecHub",
+    params.header,
+    "",
+    params.title,
+    ...params.lines.filter(Boolean),
+    ...(params.footer ? ["", params.footer] : []),
+  ].join("\n");
 }
 
 async function getMailTransporter() {
@@ -82,16 +121,30 @@ async function getMailTransporter() {
   });
 }
 
+async function isTelegramEventEnabled(event: TelegramNotificationEvent) {
+  const config = await getPlatformRuntimeConfig();
+
+  if (!config.telegram.enabled || !config.telegram.botToken || !config.telegram.chatId) {
+    return false;
+  }
+
+  if (!config.telegram.notificationEventsConfigured) {
+    return true;
+  }
+
+  return config.telegram.notificationEvents.includes(event);
+}
+
 export async function sendTelegramMessage(text: string) {
   const config = await getPlatformRuntimeConfig();
   const token = config.telegram.botToken;
   const chatId = config.telegram.chatId;
 
-  if (!token || !chatId) {
+  if (!config.telegram.enabled || !token || !chatId) {
     return;
   }
 
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -101,6 +154,41 @@ export async function sendTelegramMessage(text: string) {
       text,
     }),
   });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram retornou ${response.status}: ${body}`);
+  }
+}
+
+export async function sendTelegramTemplate(
+  event: TelegramNotificationEvent,
+  params: {
+    header: string;
+    title: string;
+    lines: string[];
+    footer?: string;
+  },
+) {
+  if (!(await isTelegramEventEnabled(event))) {
+    return;
+  }
+
+  await sendTelegramMessage(buildTelegramTemplate(params));
+}
+
+export async function sendTelegramTestMessage() {
+  await sendTelegramMessage(
+    buildTelegramTemplate({
+      header: "Teste de integracao",
+      title: "Bot configurado com sucesso",
+      lines: [
+        "Este e um envio manual de validacao do painel do SecHub.",
+        "Se esta mensagem chegou, o bot, o chat e as credenciais estao funcionando.",
+      ],
+      footer: "Voce pode ajustar os eventos enviados no painel de configuracoes.",
+    }),
+  );
 }
 
 export async function sendMail(params: {
@@ -125,7 +213,19 @@ export async function sendMail(params: {
 }
 
 export async function notifyTicketCreated(ticket: TicketContext, message: string) {
-  await sendTelegramMessage(buildTicketTelegramMessage(ticket, message));
+  await sendTelegramTemplate("ticket_created", {
+    header: "Novo ticket",
+    title: ticket.title,
+    lines: [
+      `Empresa: ${ticket.company?.name || "N/D"}`,
+      `Solicitante: ${formatPerson(ticket.openedBy)}`,
+      `Categoria: ${ticketCategoryLabels[ticket.category]} / ${ticket.subcategory}`,
+      `Prioridade: ${ticketPriorityLabels[ticket.priority]}`,
+      `Status: ${ticketStatusLabels[ticket.status]}`,
+      "",
+      `Resumo: ${message}`,
+    ],
+  });
 }
 
 export async function notifyTicketReply(params: {
@@ -149,10 +249,71 @@ export async function notifyTicketReply(params: {
     return;
   }
 
-  await sendTelegramMessage(
-    buildTicketTelegramMessage(
-      params.ticket,
-      `${formatPerson(params.author)} adicionou uma resposta:\n\n${params.message}`,
-    ),
-  );
+  await sendTelegramTemplate("ticket_reply", {
+    header: "Resposta em ticket",
+    title: params.ticket.title,
+    lines: [
+      `Empresa: ${params.ticket.company?.name || "N/D"}`,
+      `Autor: ${formatPerson(params.author)}`,
+      `Status: ${ticketStatusLabels[params.ticket.status]}`,
+      `Prioridade: ${ticketPriorityLabels[params.ticket.priority]}`,
+      "",
+      params.message,
+    ],
+  });
+}
+
+export async function notifyTicketStatusUpdated(params: {
+  ticketTitle: string;
+  companyName?: string | null;
+  status: string;
+  priority: string;
+  assignedTo?: string | null;
+}) {
+  await sendTelegramTemplate("ticket_status_updated", {
+    header: "Ticket atualizado",
+    title: params.ticketTitle,
+    lines: [
+      `Empresa: ${params.companyName || "N/D"}`,
+      `Status: ${params.status}`,
+      `Prioridade: ${params.priority}`,
+      `Responsavel: ${params.assignedTo || "Nao atribuido"}`,
+    ],
+  });
+}
+
+export async function notifyFinancialStatementGenerated(params: {
+  companyName?: string | null;
+  referenceMonth: string;
+  total: number;
+  extraHoursUsed: number;
+  visitCount: number;
+}) {
+  await sendTelegramTemplate("financial_statement_generated", {
+    header: "Fechamento financeiro",
+    title: `Competencia ${params.referenceMonth}`,
+    lines: [
+      `Empresa: ${params.companyName || "N/D"}`,
+      `Total: R$ ${params.total.toFixed(2)}`,
+      `Horas extras: ${params.extraHoursUsed.toFixed(2)}h`,
+      `Visitas: ${params.visitCount}`,
+    ],
+  });
+}
+
+export async function notifyFinancialReminder(params: {
+  companyName?: string | null;
+  fileName: string;
+  dueDate?: Date | null;
+  documentUrl: string;
+}) {
+  await sendTelegramTemplate("financial_reminder", {
+    header: "Lembrete financeiro",
+    title: params.fileName,
+    lines: [
+      `Empresa: ${params.companyName || "N/D"}`,
+      `Vencimento: ${params.dueDate ? params.dueDate.toLocaleDateString("pt-BR") : "Nao informado"}`,
+      `Documento: ${params.documentUrl}`,
+    ],
+  });
 }

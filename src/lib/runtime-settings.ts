@@ -7,6 +7,10 @@ function asObject(value: unknown) {
     : {};
 }
 
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 export async function getSettingsMap(keys: string[]) {
   const settings = await prisma.globalSetting.findMany({
     where: {
@@ -76,6 +80,8 @@ export async function getPlatformRuntimeConfig() {
         (typeof telegram.chatId === "string" && telegram.chatId) || process.env.TELEGRAM_CHAT_ID || "",
       botToken: readEncryptedValue(telegram.botTokenEncrypted) || process.env.TELEGRAM_BOT_TOKEN || "",
       botTokenHint: (typeof telegram.botTokenHint === "string" && telegram.botTokenHint) || "",
+      notificationEvents: asStringArray(telegram.notificationEvents),
+      notificationEventsConfigured: Boolean(telegram.notificationEventsConfigured),
     },
     auth0: {
       issuer: (typeof auth0.issuer === "string" && auth0.issuer) || process.env.AUTH_AUTH0_ISSUER || "",

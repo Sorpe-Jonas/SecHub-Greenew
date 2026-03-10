@@ -10,7 +10,11 @@ import {
 import { revalidatePath } from "next/cache";
 
 import { requireCurrentUser } from "@/lib/authz";
-import { sendMail } from "@/lib/notifications";
+import {
+  notifyFinancialReminder,
+  notifyFinancialStatementGenerated,
+  sendMail,
+} from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 import { uploadStorageFile } from "@/lib/storage";
@@ -231,6 +235,23 @@ export async function generateFinancialStatementAction(
       entityType: "financial_statement",
       description: `Fechamento financeiro gerado para ${referenceMonth}.`,
     },
+  });
+
+  const company = await prisma.company.findUnique({
+    where: { id: user.companyId },
+    select: {
+      name: true,
+    },
+  });
+
+  await notifyFinancialStatementGenerated({
+    companyName: company?.name,
+    referenceMonth,
+    total,
+    extraHoursUsed,
+    visitCount,
+  }).catch((error) => {
+    console.error("Falha ao enviar notificacao Telegram do fechamento financeiro:", error);
   });
 
   revalidatePath("/financial");
@@ -521,6 +542,22 @@ export async function sendFinancialReminderAction(formData: FormData) {
       description: "Lembrete financeiro enviado manualmente.",
     },
   });
+
+  const firstDocument = statement.documents[0];
+  if (firstDocument) {
+    const href = firstDocument.storagePath.startsWith("http")
+      ? firstDocument.storagePath
+      : `${runtime.appUrl}${firstDocument.storagePath}`;
+
+    await notifyFinancialReminder({
+      companyName: statement.company.name,
+      fileName: firstDocument.fileName,
+      dueDate: firstDocument.dueDate,
+      documentUrl: href,
+    }).catch((error) => {
+      console.error("Falha ao enviar notificacao Telegram do lembrete financeiro:", error);
+    });
+  }
 
   revalidatePath("/financial");
 }

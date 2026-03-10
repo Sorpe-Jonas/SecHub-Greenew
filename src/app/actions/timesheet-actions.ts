@@ -2,6 +2,7 @@
 
 import { AuditModule, RunningTimerStatus, TimeEntryType, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -239,4 +240,42 @@ export async function updateTimeEntryAction(
 
   revalidatePath("/timesheet");
   return {};
+}
+
+export async function deleteTimeEntryAction(formData: FormData) {
+  const user = await requireTimesheetUser();
+  const entryId = getValue(formData, "entryId");
+
+  if (!entryId) {
+    return;
+  }
+
+  const entry = await prisma.timeEntry.findUnique({
+    where: { id: entryId },
+  });
+
+  if (!entry || entry.userId !== user.id) {
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.timeEntry.delete({
+      where: { id: entry.id },
+    }),
+    prisma.auditLog.create({
+      data: {
+        companyId: user.companyId,
+        userId: user.id,
+        module: AuditModule.TIMESHEET,
+        action: "time_entry_deleted",
+        entityType: "time_entry",
+        entityId: entry.id,
+        description: `Lancamento removido com ${entry.durationMinutes} minuto(s).`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/timesheet");
+  revalidatePath(`/timesheet/${entry.id}`);
+  redirect("/timesheet");
 }

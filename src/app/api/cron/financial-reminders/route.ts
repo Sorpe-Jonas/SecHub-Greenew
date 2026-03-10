@@ -1,7 +1,7 @@
 import { FinancialStatementStatus, NotificationRecipientType } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-import { sendMail } from "@/lib/notifications";
+import { notifyFinancialReminder, sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
@@ -132,6 +132,15 @@ export async function POST(request: Request) {
         entityId: document.id,
         description: `Lembrete automatico enviado para ${document.fileName}.`,
       },
+    });
+
+    await notifyFinancialReminder({
+      companyName: document.financialStatement.company.name,
+      fileName: document.fileName,
+      dueDate: document.dueDate,
+      documentUrl: href,
+    }).catch((error) => {
+      console.error("Falha ao enviar notificacao Telegram do lembrete automatico:", error);
     });
 
     remindersSent += 1;

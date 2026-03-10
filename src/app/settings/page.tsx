@@ -9,10 +9,12 @@ import {
   saveSmtpSettingsAction,
   testObjectStorageConnectionAction,
   saveTelegramSettingsAction,
+  testTelegramSettingsAction,
 } from "@/app/actions/settings-actions";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireCurrentUser } from "@/lib/authz";
+import { telegramNotificationCatalog } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
@@ -301,6 +303,25 @@ export default async function SettingsPage() {
                   Chat ID
                   <input name="chatId" type="text" defaultValue={runtime.telegram.chatId} />
                 </label>
+                <div className="settingsOptionGroup">
+                  <strong>Notificacoes enviadas pelo bot</strong>
+                  <div className="settingsOptionList">
+                    {telegramNotificationCatalog.map((event) => (
+                      <label key={event.key} className="checkboxRow">
+                        <input
+                          name="notificationEvents"
+                          type="checkbox"
+                          value={event.key}
+                          defaultChecked={runtime.telegram.notificationEvents.includes(event.key)}
+                        />
+                        <span>
+                          {event.label}
+                          <small>{event.description}</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <label>
                   Bot token
                   <input
@@ -311,6 +332,26 @@ export default async function SettingsPage() {
                   />
                 </label>
               </>
+            }
+          />
+        </section>
+
+        <section className="supportPanel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Telegram</span>
+              <h2>Testar bot</h2>
+            </div>
+          </div>
+          <SettingsForm
+            action={testTelegramSettingsAction}
+            submitLabel="Enviar teste"
+            pendingLabel="Testando..."
+            fields={
+              <p className="helperText">
+                Envia uma mensagem modelo para o chat/canal configurado para validar token,
+                permissao do bot e destino.
+              </p>
             }
           />
         </section>

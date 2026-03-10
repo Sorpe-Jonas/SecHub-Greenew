@@ -4,6 +4,7 @@ import { AuditModule, Prisma, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireCurrentUser } from "@/lib/authz";
+import { sendTelegramTestMessage, telegramNotificationCatalog } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { writeEncryptedValue, getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 import { uploadStorageFile, deleteStorageFile } from "@/lib/storage";
@@ -199,12 +200,18 @@ export async function saveTelegramSettingsAction(
   const enabled = getValue(formData, "enabled") === "on";
   const chatId = getValue(formData, "chatId");
   const botToken = getValue(formData, "botToken");
+  const notificationEvents = formData
+    .getAll("notificationEvents")
+    .map((item) => item.toString())
+    .filter((item) => telegramNotificationCatalog.some((config) => config.key === item));
 
   await saveGlobalSetting(
     "telegram_settings",
     {
       enabled,
       chatId,
+      notificationEvents,
+      notificationEventsConfigured: true,
       botTokenEncrypted: botToken
         ? writeEncryptedValue(botToken)
         : writeEncryptedValue(current.telegram.botToken),
@@ -227,6 +234,32 @@ export async function saveTelegramSettingsAction(
 
   revalidatePath("/settings");
   return { success: "Configuracoes do Telegram salvas." };
+}
+
+export async function testTelegramSettingsAction(): Promise<SettingsFormState> {
+  const user = await requireSettingsUser();
+
+  try {
+    await sendTelegramTestMessage();
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: user.companyId,
+        userId: user.id,
+        module: AuditModule.SETTINGS,
+        action: "telegram_test_sent",
+        entityType: "global_setting",
+        entityId: "telegram_settings",
+        description: "Teste manual do bot do Telegram executado com sucesso.",
+      },
+    });
+
+    return { success: "Mensagem de teste enviada para o Telegram." };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Falha ao testar o bot do Telegram.",
+    };
+  }
 }
 
 export async function saveObjectStorageSettingsAction(
