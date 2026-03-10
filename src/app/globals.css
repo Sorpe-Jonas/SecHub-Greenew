@@ -342,6 +342,10 @@ textarea:focus {
   color: #b42318;
 }
 
+.successText {
+  color: #0f766e;
+}
+
 .helperText,
 .helperText a,
 .moduleShell p {
@@ -569,6 +573,11 @@ textarea:focus {
 .quickActionRow {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.attachmentItem {
+  display: grid;
   gap: 0.75rem;
 }
 

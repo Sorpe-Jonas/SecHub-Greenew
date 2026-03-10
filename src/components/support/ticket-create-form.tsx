@@ -69,6 +69,16 @@ export function TicketCreateForm({ category, subcategory }: TicketCreateFormProp
         />
       </label>
 
+      <label>
+        Anexo inicial
+        <input name="file" type="file" />
+      </label>
+
+      <label>
+        URL/Caminho do anexo
+        <input name="storagePath" type="text" placeholder="https://... ou /uploads/..." />
+      </label>
+
       {state.error ? <p className="errorText">{state.error}</p> : null}
       <SubmitButton idleLabel="Abrir ticket" pendingLabel="Criando ticket..." />
     </form>

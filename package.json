@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@aws-sdk/client-s3": "^3.1005.0",
     "@prisma/client": "^6.17.1",
     "bcryptjs": "^3.0.3",
     "next": "16.1.6",

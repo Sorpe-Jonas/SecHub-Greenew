@@ -7,8 +7,6 @@ import {
   TicketStatus,
   UserRole,
 } from "@prisma/client";
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import path from "path";
@@ -16,6 +14,7 @@ import path from "path";
 import { requireCurrentUser } from "@/lib/authz";
 import { notifyTicketCreated, notifyTicketReply, sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { uploadStorageFile } from "@/lib/storage";
 import { getTicketCatalogItem } from "@/lib/tickets";
 
 export type TicketFormState = {
@@ -28,24 +27,6 @@ function getValue(formData: FormData, key: string) {
 
 function sanitizeFileName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
-}
-
-async function storeTicketAttachment(file: File) {
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const safeName = sanitizeFileName(file.name || "anexo");
-  const relativeDir = path.join("uploads", "tickets");
-  const absoluteDir = path.join(process.cwd(), "public", relativeDir);
-  const finalName = `${Date.now()}-${randomUUID()}-${safeName}`;
-
-  await mkdir(absoluteDir, { recursive: true });
-  await writeFile(path.join(absoluteDir, finalName), buffer);
-
-  return {
-    fileName: file.name || safeName,
-    storagePath: `/${path.join(relativeDir, finalName).replace(/\\/g, "/")}`,
-    mimeType: file.type || "application/octet-stream",
-  };
 }
 
 export async function createTicketAction(
@@ -63,6 +44,10 @@ export async function createTicketAction(
   const title = getValue(formData, "title");
   const description = getValue(formData, "description");
   const priorityValue = getValue(formData, "priority");
+  let storagePath = getValue(formData, "storagePath");
+  let attachmentName = "";
+  let attachmentMimeType = "application/octet-stream";
+  const uploadedFile = formData.get("file");
 
   const category = Object.values(TicketCategory).find((item) => item === categoryValue);
   const priority = Object.values(TicketPriority).find((item) => item === priorityValue) ?? TicketPriority.MEDIUM;
@@ -84,6 +69,16 @@ export async function createTicketAction(
     return { error: "Subcategoria invalida para a categoria selecionada." };
   }
 
+  if (uploadedFile instanceof File && uploadedFile.size > 0) {
+    const stored = await uploadStorageFile({
+      file: uploadedFile,
+      folder: "tickets",
+    });
+    attachmentName = stored.fileName;
+    attachmentMimeType = stored.mimeType;
+    storagePath = stored.storagePath;
+  }
+
   const ticket = await prisma.ticket.create({
     data: {
       companyId: user.companyId,
@@ -100,6 +95,17 @@ export async function createTicketAction(
           message: description,
         },
       },
+      attachments:
+        storagePath && (attachmentName || storagePath)
+          ? {
+              create: {
+                uploadedById: user.id,
+                fileName: attachmentName || sanitizeFileName(path.basename(storagePath)) || "anexo",
+                mimeType: attachmentMimeType,
+                storagePath,
+              },
+            }
+          : undefined,
     },
   });
 
@@ -349,7 +355,10 @@ export async function addTicketAttachmentAction(
   }
 
   if (uploadedFile instanceof File && uploadedFile.size > 0) {
-    const stored = await storeTicketAttachment(uploadedFile);
+    const stored = await uploadStorageFile({
+      file: uploadedFile,
+      folder: "tickets",
+    });
     fileName = fileName || stored.fileName;
     mimeType = mimeType || stored.mimeType;
     storagePath = stored.storagePath;

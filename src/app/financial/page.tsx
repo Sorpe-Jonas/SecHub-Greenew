@@ -1,11 +1,13 @@
 import { FinancialStatementStatus, UserRole } from "@prisma/client";
 
 import {
-  generateFinancialStatementAction,
   sendFinancialReminderAction,
 } from "@/app/actions/financial-actions";
 import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
+import { FinancialGenerateForm } from "@/components/financial/financial-generate-form";
+import { FinancialDocumentStatusForm } from "@/components/financial/financial-document-status-form";
 import { FinancialProfileForm } from "@/components/financial/financial-profile-form";
+import { FinancialRecipientList } from "@/components/financial/financial-recipient-list";
 import { FinancialRecipientForm } from "@/components/financial/financial-recipient-form";
 import { FinancialStatementStatusForm } from "@/components/financial/financial-statement-status-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -32,7 +34,7 @@ function monthBounds(referenceMonth: string) {
 export default async function FinancialPage() {
   const user = await requireCurrentUser();
 
-  if (user.role === UserRole.USER || !user.companyId) {
+  if (!user.companyId) {
     return null;
   }
 
@@ -94,6 +96,7 @@ export default async function FinancialPage() {
   const currentHours = monthEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
   const currentVisits = monthVisits.length;
   const canEdit = user.role === UserRole.SUPER_ADMIN;
+  const isClientView = user.role === UserRole.USER;
   const baseFee = Number(profile?.hourlyRate || 0);
   const includedHours = Number(profile?.includedHours || 0);
   const extraRate = Number(profile?.extraHourlyRate || 0);
@@ -106,14 +109,16 @@ export default async function FinancialPage() {
       <section className="supportHeader">
         <div>
           <span className="eyebrow">Financeiro</span>
-          <h1>Resumo financeiro da empresa</h1>
+          <h1>{isClientView ? "Documentos financeiros" : "Resumo financeiro da empresa"}</h1>
           <p>
-            Este modulo consolida horas, visitas e documentos para o ciclo de cobranca. O perfil
-            abaixo controla franquia, excedente e valor de visita.
+            {isClientView
+              ? "Aqui voce acompanha os documentos liberados para sua empresa e os respectivos vencimentos."
+              : "Este modulo consolida horas, visitas e documentos para o ciclo de cobranca. O perfil abaixo controla franquia, excedente e valor de visita."}
           </p>
         </div>
       </section>
 
+      {isClientView ? null : (
       <section className="statsGrid">
         <article className="statCard">
           <strong>Horas no mes</strong>
@@ -131,7 +136,9 @@ export default async function FinancialPage() {
           <span>Valor estimado usando o perfil financeiro vigente.</span>
         </article>
       </section>
+      )}
 
+      {isClientView ? null : (
       <section className="ticketDetailGrid">
         <section className="supportPanel">
           <div className="panelHeader">
@@ -163,36 +170,18 @@ export default async function FinancialPage() {
               <h2>Gerar resumo mensal</h2>
             </div>
           </div>
-          <form className="ticketForm" action={generateFinancialStatementAction}>
-            <label>
-              Mes de referencia
-              <input name="referenceMonth" type="month" defaultValue={referenceMonth} disabled={!canEdit} />
-            </label>
-            <div className="detailList">
-              <div>
-                <strong>Franquia</strong>
-                <span>{includedHours.toFixed(2)}h</span>
-              </div>
-              <div>
-                <strong>Horas excedentes</strong>
-                <span>{extraHours.toFixed(2)}h</span>
-              </div>
-              <div>
-                <strong>Visitas</strong>
-                <span>{currentVisits}</span>
-              </div>
-            </div>
-            {canEdit ? (
-              <button className="primaryButton" type="submit">
-                Gerar fechamento
-              </button>
-            ) : (
-              <p className="helperText">Somente o Admin Total pode gerar fechamentos.</p>
-            )}
-          </form>
+          <FinancialGenerateForm
+            referenceMonth={referenceMonth}
+            canEdit={canEdit}
+            includedHours={includedHours}
+            extraHours={extraHours}
+            currentVisits={currentVisits}
+          />
         </section>
       </section>
+      )}
 
+      {isClientView ? null : (
       <section className="ticketDetailGrid">
         <section className="supportPanel">
           <div className="panelHeader">
@@ -201,20 +190,7 @@ export default async function FinancialPage() {
               <h2>Destinatarios financeiros</h2>
             </div>
           </div>
-          <div className="ticketTable">
-            {recipients.length === 0 ? (
-              <p className="helperText">Nenhum email financeiro configurado.</p>
-            ) : (
-              recipients.map((recipient) => (
-                <div key={recipient.id} className="ticketRow">
-                  <div>
-                    <strong>{recipient.email}</strong>
-                    <span>Recebe lembretes manuais de cobranca</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <FinancialRecipientList recipients={recipients.map((item) => ({ id: item.id, email: item.email }))} />
         </section>
         <section className="supportPanel">
           <div className="panelHeader">
@@ -226,6 +202,7 @@ export default async function FinancialPage() {
           {canEdit ? <FinancialRecipientForm /> : <p className="helperText">Somente o Admin Total pode editar.</p>}
         </section>
       </section>
+      )}
 
       <section className="supportPanel">
         <div className="panelHeader">
@@ -272,32 +249,42 @@ export default async function FinancialPage() {
                   </div>
                 </div>
                 <div className="documentList">
-                  {statement.documents.length === 0 ? (
+                  {statement.documents.filter((document) => !isClientView || document.isAvailableToClient).length === 0 ? (
                     <p className="helperText">Nenhum documento anexado.</p>
                   ) : null}
-                  {statement.documents.map((document) => (
-                    <a
-                      key={document.id}
-                      className="subcardLink"
-                      href={document.storagePath}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <strong>{document.documentType}</strong>
-                      <span>{document.fileName}</span>
-                      <span>
-                        {document.dueDate
-                          ? `Vencimento: ${document.dueDate.toLocaleDateString("pt-BR")}`
-                          : "Sem vencimento"}
-                      </span>
-                      <span>
-                        {document.paidAt
-                          ? `Pago em ${document.paidAt.toLocaleDateString("pt-BR")}`
-                          : `Lembretes enviados: ${document.reminderSentCount}`}
-                      </span>
-                      <span>{document.storagePath}</span>
-                    </a>
-                  ))}
+                  {statement.documents
+                    .filter((document) => !isClientView || document.isAvailableToClient)
+                    .map((document) => (
+                      <div key={document.id} className="statementCard">
+                        <a
+                          className="subcardLink"
+                          href={document.storagePath}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <strong>{document.documentType}</strong>
+                          <span>{document.fileName}</span>
+                          <span>
+                            {document.dueDate
+                              ? `Vencimento: ${document.dueDate.toLocaleDateString("pt-BR")}`
+                              : "Sem vencimento"}
+                          </span>
+                          <span>
+                            {document.paidAt
+                              ? `Pago em ${document.paidAt.toLocaleDateString("pt-BR")}`
+                              : `Lembretes enviados: ${document.reminderSentCount}`}
+                          </span>
+                          <span>{document.storagePath}</span>
+                        </a>
+                        {canEdit ? (
+                          <FinancialDocumentStatusForm
+                            documentId={document.id}
+                            isPaid={Boolean(document.paidAt)}
+                            reminderEnabled={document.reminderEnabled}
+                          />
+                        ) : null}
+                      </div>
+                    ))}
                 </div>
                 {canEdit ? (
                   <>

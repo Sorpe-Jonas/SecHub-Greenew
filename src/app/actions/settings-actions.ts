@@ -6,9 +6,11 @@ import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { writeEncryptedValue, getPlatformRuntimeConfig } from "@/lib/runtime-settings";
+import { uploadStorageFile, deleteStorageFile } from "@/lib/storage";
 
 export type SettingsFormState = {
   error?: string;
+  success?: string;
 };
 
 function getValue(formData: FormData, key: string) {
@@ -66,7 +68,7 @@ export async function saveSessionSettingsAction(
   });
 
   revalidatePath("/settings");
-  return {};
+  return { success: "Configuracao de sessao atualizada." };
 }
 
 export async function saveAuth0SettingsAction(
@@ -104,7 +106,7 @@ export async function saveAuth0SettingsAction(
   });
 
   revalidatePath("/settings");
-  return {};
+  return { success: "Configuracoes do Auth0 salvas." };
 }
 
 export async function savePlatformUrlsAction(
@@ -142,7 +144,7 @@ export async function savePlatformUrlsAction(
 
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  return {};
+  return { success: "URLs da plataforma salvas." };
 }
 
 export async function saveSmtpSettingsAction(
@@ -185,7 +187,7 @@ export async function saveSmtpSettingsAction(
   });
 
   revalidatePath("/settings");
-  return {};
+  return { success: "Configuracoes SMTP salvas." };
 }
 
 export async function saveTelegramSettingsAction(
@@ -224,5 +226,95 @@ export async function saveTelegramSettingsAction(
   });
 
   revalidatePath("/settings");
-  return {};
+  return { success: "Configuracoes do Telegram salvas." };
+}
+
+export async function saveObjectStorageSettingsAction(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireSettingsUser();
+  const current = await getPlatformRuntimeConfig();
+  const enabled = getValue(formData, "enabled") === "on";
+  const provider = getValue(formData, "provider") || "b2";
+  const accessKeyId = getValue(formData, "accessKeyId");
+  const secretAccessKey = getValue(formData, "secretAccessKey");
+  const bucket = getValue(formData, "bucket");
+  const region = getValue(formData, "region");
+  const endpoint = getValue(formData, "endpoint");
+
+  await saveGlobalSetting(
+    "object_storage_settings",
+    {
+      enabled,
+      provider,
+      bucket,
+      region,
+      endpoint,
+      accessKeyIdEncrypted: accessKeyId
+        ? writeEncryptedValue(accessKeyId)
+        : writeEncryptedValue(current.objectStorage.accessKeyId),
+      secretAccessKeyEncrypted: secretAccessKey
+        ? writeEncryptedValue(secretAccessKey)
+        : writeEncryptedValue(current.objectStorage.secretAccessKey),
+    },
+    user.id,
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.SETTINGS,
+      action: "object_storage_settings_saved",
+      entityType: "global_setting",
+      entityId: "object_storage_settings",
+      description: "Configuracoes de object storage atualizadas.",
+    },
+  });
+
+  revalidatePath("/settings");
+  return { success: "Configuracoes de storage salvas." };
+}
+
+export async function testObjectStorageConnectionAction(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireSettingsUser();
+  const testFile = formData.get("testFile");
+
+  try {
+    const file =
+      testFile instanceof File && testFile.size > 0
+        ? testFile
+        : new File([Buffer.from("sechub storage healthcheck")], "healthcheck.txt", {
+            type: "text/plain",
+          });
+
+    const uploaded = await uploadStorageFile({
+      file,
+      folder: "healthcheck",
+    });
+
+    await deleteStorageFile(uploaded.storagePath);
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: user.companyId,
+        userId: user.id,
+        module: AuditModule.SETTINGS,
+        action: "object_storage_tested",
+        entityType: "global_setting",
+        entityId: "object_storage_settings",
+        description: "Teste de conexao com object storage executado com sucesso.",
+      },
+    });
+
+    return { success: "Conexao com object storage validada com sucesso." };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Falha ao testar object storage.",
+    };
+  }
 }

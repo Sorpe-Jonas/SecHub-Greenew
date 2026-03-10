@@ -7,18 +7,17 @@ import {
   NotificationRecipientType,
   UserRole,
 } from "@prisma/client";
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
 import { revalidatePath } from "next/cache";
-import path from "path";
 
 import { requireCurrentUser } from "@/lib/authz";
 import { sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
+import { uploadStorageFile } from "@/lib/storage";
 
 export type FinancialFormState = {
   error?: string;
+  success?: string;
 };
 
 function getValue(formData: FormData, key: string) {
@@ -37,27 +36,6 @@ function parseDate(value: string) {
 
   const parsed = new Date(`${value}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function sanitizeFileName(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
-}
-
-async function storeFinancialFile(file: File) {
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const safeName = sanitizeFileName(file.name || "documento");
-  const relativeDir = path.join("uploads", "financial");
-  const absoluteDir = path.join(process.cwd(), "public", relativeDir);
-  const finalName = `${Date.now()}-${randomUUID()}-${safeName}`;
-
-  await mkdir(absoluteDir, { recursive: true });
-  await writeFile(path.join(absoluteDir, finalName), buffer);
-
-  return {
-    fileName: file.name || safeName,
-    storagePath: `/${path.join(relativeDir, finalName).replace(/\\/g, "/")}`,
-  };
 }
 
 async function requireFinancialUser() {
@@ -146,11 +124,14 @@ export async function saveFinancialProfileAction(
   return {};
 }
 
-export async function generateFinancialStatementAction(formData: FormData) {
+export async function generateFinancialStatementAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
   const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
-    return;
+    return { error: "Somente o Admin Total pode gerar fechamentos." };
   }
 
   const referenceMonth = getValue(formData, "referenceMonth");
@@ -159,7 +140,7 @@ export async function generateFinancialStatementAction(formData: FormData) {
   });
 
   if (!profile || !referenceMonth) {
-    return;
+    return { error: "Perfil financeiro ou mes de referencia invalido." };
   }
 
   const { start, end } = monthBounds(referenceMonth);
@@ -253,6 +234,7 @@ export async function generateFinancialStatementAction(formData: FormData) {
   });
 
   revalidatePath("/financial");
+  return { success: `Fechamento de ${referenceMonth} gerado/atualizado com sucesso.` };
 }
 
 export async function addFinancialDocumentAction(
@@ -281,7 +263,10 @@ export async function addFinancialDocumentAction(
   let storagePath = storagePathInput;
 
   if (uploadedFile instanceof File && uploadedFile.size > 0) {
-    const storedFile = await storeFinancialFile(uploadedFile);
+    const storedFile = await uploadStorageFile({
+      file: uploadedFile,
+      folder: "financial",
+    });
     fileName = fileName || storedFile.fileName;
     storagePath = storedFile.storagePath;
   }
@@ -379,6 +364,63 @@ export async function addFinancialRecipientAction(
       action: "financial_recipient_added",
       entityType: "notification_recipient",
       description: `Destinatario financeiro adicionado: ${email}`,
+    },
+  });
+
+  revalidatePath("/financial");
+  return {};
+}
+
+export async function updateFinancialDocumentStatusAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode alterar documentos." };
+  }
+
+  const documentId = getValue(formData, "documentId");
+  const markAsPaid = getValue(formData, "markAsPaid") === "on";
+  const reminderEnabled = getValue(formData, "reminderEnabled") === "on";
+
+  if (!documentId) {
+    return { error: "Documento invalido." };
+  }
+
+  const document = await prisma.financialDocument.findUnique({
+    where: { id: documentId },
+    include: {
+      financialStatement: {
+        select: {
+          companyId: true,
+        },
+      },
+    },
+  });
+
+  if (!document || document.financialStatement.companyId !== user.companyId) {
+    return { error: "Documento nao encontrado." };
+  }
+
+  await prisma.financialDocument.update({
+    where: { id: document.id },
+    data: {
+      paidAt: markAsPaid ? document.paidAt ?? new Date() : null,
+      reminderEnabled,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: document.financialStatement.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_document_updated",
+      entityType: "financial_document",
+      entityId: document.id,
+      description: `Documento financeiro atualizado: ${document.fileName}`,
     },
   });
 

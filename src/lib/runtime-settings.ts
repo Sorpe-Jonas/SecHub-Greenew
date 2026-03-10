@@ -41,12 +41,14 @@ export async function getPlatformRuntimeConfig() {
     "smtp_settings",
     "telegram_settings",
     "auth0_settings",
+    "object_storage_settings",
   ]);
 
   const platform = asObject(map.get("platform_urls"));
   const smtp = asObject(map.get("smtp_settings"));
   const telegram = asObject(map.get("telegram_settings"));
   const auth0 = asObject(map.get("auth0_settings"));
+  const objectStorage = asObject(map.get("object_storage_settings"));
 
   return {
     appUrl:
@@ -78,6 +80,30 @@ export async function getPlatformRuntimeConfig() {
     auth0: {
       issuer: (typeof auth0.issuer === "string" && auth0.issuer) || process.env.AUTH_AUTH0_ISSUER || "",
       clientId: (typeof auth0.clientId === "string" && auth0.clientId) || process.env.AUTH_AUTH0_ID || "",
+    },
+    objectStorage: {
+      enabled: Boolean(objectStorage.enabled),
+      provider: (typeof objectStorage.provider === "string" && objectStorage.provider) || "local",
+      accessKeyId:
+        readEncryptedValue(objectStorage.accessKeyIdEncrypted) ||
+        process.env.AWS_ACCESS_KEY_ID ||
+        "",
+      secretAccessKey:
+        readEncryptedValue(objectStorage.secretAccessKeyEncrypted) ||
+        process.env.AWS_SECRET_ACCESS_KEY ||
+        "",
+      bucket:
+        (typeof objectStorage.bucket === "string" && objectStorage.bucket) ||
+        process.env.BUCKET_NAME ||
+        "",
+      region:
+        (typeof objectStorage.region === "string" && objectStorage.region) ||
+        process.env.REGION ||
+        "",
+      endpoint:
+        (typeof objectStorage.endpoint === "string" && objectStorage.endpoint) ||
+        process.env.ENDPOINT_URL ||
+        "",
     },
   };
 }

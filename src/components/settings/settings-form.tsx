@@ -23,6 +23,7 @@ export function SettingsForm({ action, fields, submitLabel }: SettingsFormProps)
     <form className="ticketForm" action={formAction}>
       {fields}
       {state.error ? <p className="errorText">{state.error}</p> : null}
+      {state.success ? <p className="successText">{state.success}</p> : null}
       <SubmitButton idleLabel={submitLabel} pendingLabel="Salvando..." />
     </form>
   );

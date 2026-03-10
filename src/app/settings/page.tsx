@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 
 import {
   saveAuth0SettingsAction,
+  saveObjectStorageSettingsAction,
   savePlatformUrlsAction,
   saveSessionSettingsAction,
   saveSmtpSettingsAction,
+  testObjectStorageConnectionAction,
   saveTelegramSettingsAction,
 } from "@/app/actions/settings-actions";
 import { SettingsForm } from "@/components/settings/settings-form";
@@ -29,6 +31,7 @@ export default async function SettingsPage() {
           "auth0_settings",
           "smtp_settings",
           "telegram_settings",
+          "object_storage_settings",
         ],
       },
     },
@@ -38,6 +41,7 @@ export default async function SettingsPage() {
   const auth0 = (settings.find((item) => item.key === "auth0_settings")?.value as Record<string, unknown> | undefined) ?? {};
   const smtp = (settings.find((item) => item.key === "smtp_settings")?.value as Record<string, unknown> | undefined) ?? {};
   const telegram = (settings.find((item) => item.key === "telegram_settings")?.value as Record<string, unknown> | undefined) ?? {};
+  const objectStorage = (settings.find((item) => item.key === "object_storage_settings")?.value as Record<string, unknown> | undefined) ?? {};
 
   return (
     <main className="supportShell">
@@ -75,6 +79,81 @@ export default async function SettingsPage() {
             </>
           }
         />
+      </section>
+
+      <section className="ticketDetailGrid">
+        <section className="supportPanel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Object Storage</span>
+              <h2>Backblaze B2 / S3 compatível</h2>
+            </div>
+          </div>
+          <SettingsForm
+            action={saveObjectStorageSettingsAction}
+            submitLabel="Salvar storage"
+            fields={
+              <>
+                <label className="checkboxRow">
+                  <input
+                    name="enabled"
+                    type="checkbox"
+                    defaultChecked={Boolean(objectStorage.enabled)}
+                  />
+                  <span>Storage externo habilitado</span>
+                </label>
+                <label>
+                  Provider
+                  <input name="provider" type="text" defaultValue={String(objectStorage.provider || "b2")} />
+                </label>
+                <label>
+                  AWS_ACCESS_KEY_ID
+                  <input name="accessKeyId" type="text" defaultValue={runtime.objectStorage.accessKeyId} />
+                </label>
+                <label>
+                  AWS_SECRET_ACCESS_KEY
+                  <input
+                    name="secretAccessKey"
+                    type="password"
+                    defaultValue=""
+                    placeholder={runtime.objectStorage.secretAccessKey ? "Ja cadastrado. Preencha apenas para trocar." : "Secret access key"}
+                  />
+                </label>
+                <label>
+                  Bucket
+                  <input name="bucket" type="text" defaultValue={runtime.objectStorage.bucket} />
+                </label>
+                <label>
+                  Regiao
+                  <input name="region" type="text" defaultValue={runtime.objectStorage.region} />
+                </label>
+                <label>
+                  Endpoint
+                  <input name="endpoint" type="text" defaultValue={runtime.objectStorage.endpoint} />
+                </label>
+              </>
+            }
+          />
+        </section>
+
+        <section className="supportPanel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Healthcheck</span>
+              <h2>Testar conexao</h2>
+            </div>
+          </div>
+          <SettingsForm
+            action={testObjectStorageConnectionAction}
+            submitLabel="Testar conexao"
+            fields={
+              <label>
+                Arquivo de teste (opcional)
+                <input name="testFile" type="file" />
+              </label>
+            }
+          />
+        </section>
       </section>
 
       <section className="ticketDetailGrid">

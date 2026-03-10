@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 
+import { TicketAttachmentItem } from "@/components/support/ticket-attachment-item";
 import { TicketAttachmentForm } from "@/components/support/ticket-attachment-form";
 import { TicketManagementForm } from "@/components/support/ticket-management-form";
 import { TicketReplyForm } from "@/components/support/ticket-reply-form";
@@ -77,6 +78,25 @@ export default async function TicketDetailPage({
       })
     : [];
 
+  const auditLogs = await prisma.auditLog.findMany({
+    where: {
+      entityType: "ticket",
+      entityId: ticket.id,
+    },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 30,
+  });
+
   return (
     <main className="supportShell">
       <section className="supportHeader">
@@ -140,17 +160,15 @@ export default async function TicketDetailPage({
               <p className="helperText">Nenhum anexo neste ticket.</p>
             ) : (
               ticket.attachments.map((attachment) => (
-                <a
+                <TicketAttachmentItem
                   key={attachment.id}
-                  className="subcardLink"
-                  href={attachment.storagePath}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <strong>{attachment.fileName}</strong>
-                  <span>{attachment.mimeType}</span>
-                  <span>Enviado por {attachment.uploadedBy.name || attachment.uploadedBy.email}</span>
-                </a>
+                  attachmentId={attachment.id}
+                  fileName={attachment.fileName}
+                  mimeType={attachment.mimeType}
+                  storagePath={attachment.storagePath}
+                  uploadedByLabel={`Enviado por ${attachment.uploadedBy.name || attachment.uploadedBy.email}`}
+                  canDelete={canManage || attachment.uploadedById === user.id}
+                />
               ))
             )}
           </div>
@@ -179,6 +197,25 @@ export default async function TicketDetailPage({
             ))}
           </div>
           <TicketReplyForm ticketId={ticket.id} />
+      </section>
+
+      <section className="supportPanel">
+        <h2>Timeline</h2>
+        <div className="messageList">
+          {auditLogs.length === 0 ? (
+            <p className="helperText">Nenhum evento registrado ainda.</p>
+          ) : (
+            auditLogs.map((log) => (
+              <div key={log.id} className="messageItem">
+                <div className="messageMeta">
+                  <strong>{log.user?.name || log.user?.email || "Sistema"}</strong>
+                  <span>{log.createdAt.toLocaleString("pt-BR")}</span>
+                </div>
+                <p>{log.description || log.action}</p>
+              </div>
+            ))
+          )}
+        </div>
       </section>
     </main>
   );
