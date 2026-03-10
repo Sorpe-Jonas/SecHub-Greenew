@@ -9,9 +9,6 @@ type BeforeInstallPromptEvent = Event & {
 
 export function PwaProvider() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isOffline, setIsOffline] = useState(() =>
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -29,17 +26,10 @@ export function PwaProvider() {
       setInstallEvent(event as BeforeInstallPromptEvent);
     };
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -53,25 +43,19 @@ export function PwaProvider() {
     setInstallEvent(null);
   }
 
-  if (!installEvent && !isOffline) {
+  if (!installEvent) {
     return null;
   }
 
   return (
     <div className="pwaBanner">
       <div>
-        <strong>{isOffline ? "Modo offline ativo" : "Instale o aplicativo"}</strong>
-        <span>
-          {isOffline
-            ? "Alguns dados em cache continuam disponiveis mesmo sem conexao."
-            : "Adicione o portal a tela inicial para usar como app no desktop e mobile."}
-        </span>
+        <strong>Instale o aplicativo</strong>
+        <span>Adicione o portal a tela inicial para usar como app no desktop e mobile.</span>
       </div>
-      {installEvent ? (
-        <button className="secondaryButton" type="button" onClick={handleInstall}>
-          Instalar
-        </button>
-      ) : null}
+      <button className="secondaryButton" type="button" onClick={handleInstall}>
+        Instalar
+      </button>
     </div>
   );
 }

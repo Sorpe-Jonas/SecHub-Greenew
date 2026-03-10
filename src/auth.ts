@@ -8,6 +8,8 @@ import { UserRole, UserStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
+const authSecret = process.env.AUTH_SECRET || "sechub-dev-secret-change-me";
+
 const auth0Enabled = Boolean(
   process.env.AUTH_AUTH0_ID &&
     process.env.AUTH_AUTH0_SECRET &&
@@ -82,7 +84,7 @@ async function getUserIdentityByEmail(email?: string | null) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
-  secret: process.env.AUTH_SECRET,
+  secret: authSecret,
   session: {
     strategy: "jwt",
   },

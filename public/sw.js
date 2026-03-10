@@ -1,5 +1,5 @@
-const CACHE_NAME = "sechub-greenew-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/favicon.ico"];
+const CACHE_NAME = "sechub-v2";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
