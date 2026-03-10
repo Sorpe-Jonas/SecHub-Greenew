@@ -15,8 +15,8 @@ export default async function GrafanaUnconfiguredPage() {
       <span className="eyebrow">Configuracao Pendente</span>
       <h1>Grafana ainda nao configurado</h1>
       <p>
-        Defina `NEXT_PUBLIC_GRAFANA_URL` no ambiente para que o card direcione para a instancia
-        correta do Grafana.
+        Defina a URL do Grafana no painel de Configuracoes ou use `NEXT_PUBLIC_GRAFANA_URL` como
+        fallback de ambiente.
       </p>
       <Link className="secondaryButton linkButton" href="/dashboard">
         Voltar ao dashboard

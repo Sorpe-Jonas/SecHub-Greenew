@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { getVisibleCards } from "@/lib/blocks";
 import { prisma } from "@/lib/prisma";
+import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -28,7 +29,16 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const cards = getVisibleCards(user.role, user.blockPermissions);
+  const runtime = await getPlatformRuntimeConfig();
+  const cards = getVisibleCards(user.role, user.blockPermissions).map((card) =>
+    card.block === "GRAFANA"
+      ? {
+          ...card,
+          href: runtime.grafanaUrl || "/grafana-unconfigured",
+          external: Boolean(runtime.grafanaUrl),
+        }
+      : card,
+  );
 
   async function handleSignOut() {
     "use server";
@@ -65,7 +75,7 @@ export default async function DashboardPage() {
         {cards.map((card) => {
           const className = `portalCard ${card.tone}`;
 
-          if (card.external) {
+          if (card.external && card.href) {
             return (
               <a
                 key={card.title}
@@ -83,7 +93,7 @@ export default async function DashboardPage() {
           }
 
           return (
-            <Link key={card.title} className={className} href={card.href}>
+            <Link key={card.title} className={className} href={card.href || "/dashboard"}>
               <span className="cardLabel">Aplicativo</span>
               <h2>{card.title}</h2>
               <p>{card.description}</p>

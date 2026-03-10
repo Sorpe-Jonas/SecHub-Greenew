@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { type Company, type Ticket, type User } from "@prisma/client";
 
+import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 import { ticketCategoryLabels, ticketPriorityLabels, ticketStatusLabels } from "@/lib/tickets";
 
 type TicketContext = Ticket & {
@@ -59,11 +60,12 @@ function buildTicketEmailHtml(params: {
   `;
 }
 
-function getMailTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+async function getMailTransporter() {
+  const config = await getPlatformRuntimeConfig();
+  const host = config.smtp.host;
+  const port = Number(config.smtp.port || 587);
+  const user = config.smtp.user;
+  const pass = config.smtp.pass;
 
   if (!host || !user || !pass) {
     return null;
@@ -81,8 +83,9 @@ function getMailTransporter() {
 }
 
 export async function sendTelegramMessage(text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const config = await getPlatformRuntimeConfig();
+  const token = config.telegram.botToken;
+  const chatId = config.telegram.chatId;
 
   if (!token || !chatId) {
     return;
@@ -105,8 +108,9 @@ export async function sendMail(params: {
   subject: string;
   html: string;
 }) {
-  const transporter = getMailTransporter();
-  const from = process.env.SMTP_FROM;
+  const config = await getPlatformRuntimeConfig();
+  const transporter = await getMailTransporter();
+  const from = config.smtp.from;
 
   if (!transporter || !from) {
     return;

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import {
   saveAuth0SettingsAction,
+  savePlatformUrlsAction,
   saveSessionSettingsAction,
   saveSmtpSettingsAction,
   saveTelegramSettingsAction,
@@ -10,16 +11,7 @@ import {
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-
-function getSettingValue(
-  settings: Array<{ key: string; value: unknown }>,
-  key: string,
-) {
-  return settings.find((item) => item.key === key)?.value as
-    | Record<string, string | number | boolean | null | undefined>
-    | number
-    | undefined;
-}
+import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
 export default async function SettingsPage() {
   const user = await requireCurrentUser();
@@ -33,6 +25,7 @@ export default async function SettingsPage() {
       key: {
         in: [
           "session_timeout_minutes",
+          "platform_urls",
           "auth0_settings",
           "smtp_settings",
           "telegram_settings",
@@ -40,12 +33,11 @@ export default async function SettingsPage() {
       },
     },
   });
-
-  const sessionTimeout = (getSettingValue(settings, "session_timeout_minutes") as number | undefined) ?? 120;
-  const auth0 = (getSettingValue(settings, "auth0_settings") as Record<string, unknown> | undefined) ?? {};
-  const smtp = (getSettingValue(settings, "smtp_settings") as Record<string, unknown> | undefined) ?? {};
-  const telegram =
-    (getSettingValue(settings, "telegram_settings") as Record<string, unknown> | undefined) ?? {};
+  const runtime = await getPlatformRuntimeConfig();
+  const sessionTimeout = (settings.find((item) => item.key === "session_timeout_minutes")?.value as number | undefined) ?? 120;
+  const auth0 = (settings.find((item) => item.key === "auth0_settings")?.value as Record<string, unknown> | undefined) ?? {};
+  const smtp = (settings.find((item) => item.key === "smtp_settings")?.value as Record<string, unknown> | undefined) ?? {};
+  const telegram = (settings.find((item) => item.key === "telegram_settings")?.value as Record<string, unknown> | undefined) ?? {};
 
   return (
     <main className="supportShell">
@@ -54,10 +46,35 @@ export default async function SettingsPage() {
           <span className="eyebrow">Configuracoes</span>
           <h1>Integracoes e politicas globais</h1>
           <p>
-            Este painel concentra as referencias operacionais das configuracoes da plataforma. A
-            execucao real ainda usa as variaveis de ambiente enquanto o fluxo de secrets nao e migrado.
+            Este painel concentra configuracoes operacionais da plataforma. SMTP, Telegram, URL
+            publica e Grafana ja podem ser consumidos diretamente daqui.
           </p>
         </div>
+      </section>
+
+      <section className="supportPanel">
+        <div className="panelHeader">
+          <div>
+            <span className="eyebrow">Plataforma</span>
+            <h2>URLs operacionais</h2>
+          </div>
+        </div>
+        <SettingsForm
+          action={savePlatformUrlsAction}
+          submitLabel="Salvar URLs"
+          fields={
+            <>
+              <label>
+                URL publica principal
+                <input name="appUrl" type="text" defaultValue={runtime.appUrl} />
+              </label>
+              <label>
+                URL do Grafana
+                <input name="grafanaUrl" type="text" defaultValue={runtime.grafanaUrl} />
+              </label>
+            </>
+          }
+        />
       </section>
 
       <section className="ticketDetailGrid">
@@ -154,7 +171,21 @@ export default async function SettingsPage() {
                 </label>
                 <label>
                   Usuario
-                  <input name="userName" type="text" defaultValue={String(smtp.userName || "")} />
+                  <input
+                    name="userName"
+                    type="text"
+                    defaultValue={runtime.smtp.user}
+                    placeholder="usuario SMTP"
+                  />
+                </label>
+                <label>
+                  Senha
+                  <input
+                    name="password"
+                    type="password"
+                    defaultValue=""
+                    placeholder={runtime.smtp.pass ? "Senha ja cadastrada. Preencha apenas para trocar." : "Senha SMTP"}
+                  />
                 </label>
                 <label>
                   From
@@ -187,21 +218,48 @@ export default async function SettingsPage() {
                 </label>
                 <label>
                   Chat ID
-                  <input name="chatId" type="text" defaultValue={String(telegram.chatId || "")} />
+                  <input name="chatId" type="text" defaultValue={runtime.telegram.chatId} />
                 </label>
                 <label>
-                  Token hint
+                  Bot token
                   <input
-                    name="botTokenHint"
-                    type="text"
-                    defaultValue={String(telegram.botTokenHint || "")}
-                    placeholder="Ex.: token salvo no ambiente"
+                    name="botToken"
+                    type="password"
+                    defaultValue=""
+                    placeholder={runtime.telegram.botToken ? "Token ja cadastrado. Preencha apenas para trocar." : "Token do bot"}
                   />
                 </label>
               </>
             }
           />
         </section>
+      </section>
+
+      <section className="supportPanel">
+        <div className="panelHeader">
+          <div>
+            <span className="eyebrow">Segredos externos</span>
+            <h2>Continuam fora da plataforma</h2>
+          </div>
+        </div>
+        <div className="detailList">
+          <div>
+            <strong>DATABASE_URL</strong>
+            <span>String de conexao do PostgreSQL. Vem do provedor do banco ou da sua infraestrutura.</span>
+          </div>
+          <div>
+            <strong>AUTH_SECRET</strong>
+            <span>Gere com `openssl rand -base64 32` ou com um comando Node que produza 32 bytes aleatorios em base64.</span>
+          </div>
+          <div>
+            <strong>PASSWORD_ENCRYPTION_SECRET</strong>
+            <span>Gere com o mesmo processo do `AUTH_SECRET`, mas use um valor separado e dedicado ao cofre.</span>
+          </div>
+          <div>
+            <strong>AUTH_AUTH0_SECRET</strong>
+            <span>Obtenha no painel do Auth0, em Applications, no client da aplicacao configurada para SSO.</span>
+          </div>
+        </div>
       </section>
     </main>
   );

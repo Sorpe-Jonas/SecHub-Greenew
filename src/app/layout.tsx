@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 
+import { PwaProvider } from "@/components/pwa/pwa-provider";
 import "./globals.css";
 
 const headingFont = Space_Grotesk({
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${headingFont.variable} ${bodyFont.variable}`}>{children}</body>
+      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+        {children}
+        <PwaProvider />
+      </body>
     </html>
   );
 }

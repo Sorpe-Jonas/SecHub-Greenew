@@ -18,6 +18,7 @@ import { requireCurrentUser } from "@/lib/authz";
 import { sendMail } from "@/lib/notifications";
 import { getDefaultBlocksForRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
 export type AdminFormState = {
   error?: string;
@@ -35,10 +36,6 @@ function slugifyCompanyName(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
-}
-
-function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
 
 export async function createCompanyAction(
@@ -206,7 +203,8 @@ export async function inviteUserAction(
     },
   });
 
-  const inviteUrl = `${appUrl()}/invite/${token}`;
+  const config = await getPlatformRuntimeConfig();
+  const inviteUrl = `${config.appUrl}/invite/${token}`;
 
   await sendMail({
     to: email,

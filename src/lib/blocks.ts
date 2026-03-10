@@ -4,7 +4,7 @@ export type DashboardCard = {
   block: BlockKey;
   title: string;
   description: string;
-  href: string;
+  href?: string;
   tone: "amber" | "cyan" | "slate";
   external?: boolean;
   roles: UserRole[];
@@ -31,9 +31,7 @@ export const dashboardCards: DashboardCard[] = [
     block: BlockKey.GRAFANA,
     title: "Grafana",
     description: "Acesso rapido aos paineis de observabilidade e indicadores operacionais.",
-    href: process.env.NEXT_PUBLIC_GRAFANA_URL || "/grafana-unconfigured",
     tone: "slate",
-    external: Boolean(process.env.NEXT_PUBLIC_GRAFANA_URL),
     roles: [UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN],
   },
   {

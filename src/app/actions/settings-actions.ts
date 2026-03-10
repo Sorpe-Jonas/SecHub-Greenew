@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { writeEncryptedValue, getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
 export type SettingsFormState = {
   error?: string;
@@ -106,16 +107,56 @@ export async function saveAuth0SettingsAction(
   return {};
 }
 
+export async function savePlatformUrlsAction(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireSettingsUser();
+  const appUrl = getValue(formData, "appUrl");
+  const grafanaUrl = getValue(formData, "grafanaUrl");
+
+  if (!appUrl) {
+    return { error: "Informe a URL publica principal da plataforma." };
+  }
+
+  await saveGlobalSetting(
+    "platform_urls",
+    {
+      appUrl,
+      grafanaUrl,
+    },
+    user.id,
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.SETTINGS,
+      action: "platform_urls_saved",
+      entityType: "global_setting",
+      entityId: "platform_urls",
+      description: "URLs da plataforma atualizadas.",
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
 export async function saveSmtpSettingsAction(
   _prevState: SettingsFormState,
   formData: FormData,
 ): Promise<SettingsFormState> {
   const user = await requireSettingsUser();
+  const current = await getPlatformRuntimeConfig();
   const enabled = getValue(formData, "enabled") === "on";
   const host = getValue(formData, "host");
   const port = getValue(formData, "port");
   const from = getValue(formData, "from");
   const userName = getValue(formData, "userName");
+  const password = getValue(formData, "password");
 
   await saveGlobalSetting(
     "smtp_settings",
@@ -124,8 +165,9 @@ export async function saveSmtpSettingsAction(
       host,
       port,
       from,
-      userName,
-      note: "As credenciais reais continuam sendo lidas do ambiente.",
+      userEncrypted: userName ? writeEncryptedValue(userName) : writeEncryptedValue(current.smtp.user),
+      passEncrypted: password ? writeEncryptedValue(password) : writeEncryptedValue(current.smtp.pass),
+      userNameHint: userName ? "Configurado na plataforma" : current.smtp.userNameHint || "",
     },
     user.id,
   );
@@ -151,17 +193,20 @@ export async function saveTelegramSettingsAction(
   formData: FormData,
 ): Promise<SettingsFormState> {
   const user = await requireSettingsUser();
+  const current = await getPlatformRuntimeConfig();
   const enabled = getValue(formData, "enabled") === "on";
   const chatId = getValue(formData, "chatId");
-  const botTokenHint = getValue(formData, "botTokenHint");
+  const botToken = getValue(formData, "botToken");
 
   await saveGlobalSetting(
     "telegram_settings",
     {
       enabled,
       chatId,
-      botTokenHint,
-      note: "O token real continua sendo lido do ambiente.",
+      botTokenEncrypted: botToken
+        ? writeEncryptedValue(botToken)
+        : writeEncryptedValue(current.telegram.botToken),
+      botTokenHint: botToken ? "Configurado na plataforma" : current.telegram.botTokenHint || "",
     },
     user.id,
   );

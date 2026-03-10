@@ -1,0 +1,83 @@
+import { prisma } from "@/lib/prisma";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
+
+function asObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export async function getSettingsMap(keys: string[]) {
+  const settings = await prisma.globalSetting.findMany({
+    where: {
+      key: {
+        in: keys,
+      },
+    },
+  });
+
+  return new Map(settings.map((setting) => [setting.key, setting.value]));
+}
+
+export function readEncryptedValue(value?: unknown) {
+  if (typeof value !== "string" || !value) {
+    return "";
+  }
+
+  try {
+    return decryptSecret(value);
+  } catch {
+    return "";
+  }
+}
+
+export function writeEncryptedValue(value: string) {
+  return value ? encryptSecret(value) : "";
+}
+
+export async function getPlatformRuntimeConfig() {
+  const map = await getSettingsMap([
+    "platform_urls",
+    "smtp_settings",
+    "telegram_settings",
+    "auth0_settings",
+  ]);
+
+  const platform = asObject(map.get("platform_urls"));
+  const smtp = asObject(map.get("smtp_settings"));
+  const telegram = asObject(map.get("telegram_settings"));
+  const auth0 = asObject(map.get("auth0_settings"));
+
+  return {
+    appUrl:
+      (typeof platform.appUrl === "string" && platform.appUrl) ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000",
+    grafanaUrl:
+      (typeof platform.grafanaUrl === "string" && platform.grafanaUrl) ||
+      process.env.NEXT_PUBLIC_GRAFANA_URL ||
+      "",
+    smtp: {
+      enabled: Boolean(smtp.enabled),
+      host: (typeof smtp.host === "string" && smtp.host) || process.env.SMTP_HOST || "",
+      port:
+        (typeof smtp.port === "string" && smtp.port) ||
+        (typeof smtp.port === "number" ? String(smtp.port) : process.env.SMTP_PORT || "587"),
+      user: readEncryptedValue(smtp.userEncrypted) || process.env.SMTP_USER || "",
+      pass: readEncryptedValue(smtp.passEncrypted) || process.env.SMTP_PASS || "",
+      from: (typeof smtp.from === "string" && smtp.from) || process.env.SMTP_FROM || "",
+      userNameHint: (typeof smtp.userNameHint === "string" && smtp.userNameHint) || "",
+    },
+    telegram: {
+      enabled: Boolean(telegram.enabled),
+      chatId:
+        (typeof telegram.chatId === "string" && telegram.chatId) || process.env.TELEGRAM_CHAT_ID || "",
+      botToken: readEncryptedValue(telegram.botTokenEncrypted) || process.env.TELEGRAM_BOT_TOKEN || "",
+      botTokenHint: (typeof telegram.botTokenHint === "string" && telegram.botTokenHint) || "",
+    },
+    auth0: {
+      issuer: (typeof auth0.issuer === "string" && auth0.issuer) || process.env.AUTH_AUTH0_ISSUER || "",
+      clientId: (typeof auth0.clientId === "string" && auth0.clientId) || process.env.AUTH_AUTH0_ID || "",
+    },
+  };
+}
