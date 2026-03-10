@@ -8,8 +8,15 @@ import {
   UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/authz";
+import {
+  buildFinancialSummary,
+  calculateExtraCharge,
+  financialDocumentLabels,
+  formatCurrency,
+} from "@/lib/financial";
 import {
   notifyFinancialReminder,
   notifyFinancialStatementGenerated,
@@ -17,7 +24,7 @@ import {
 } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
-import { uploadStorageFile } from "@/lib/storage";
+import { deleteStorageFile, uploadStorageFile } from "@/lib/storage";
 
 export type FinancialFormState = {
   error?: string;
@@ -66,6 +73,54 @@ function monthBounds(referenceMonth: string) {
   return { start, end };
 }
 
+function buildReminderEmailHtml(params: {
+  companyName: string;
+  referenceMonth: Date;
+  summary: ReturnType<typeof buildFinancialSummary>;
+  intro: string;
+  documentsHtml: string;
+}) {
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
+        <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
+        <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete financeiro</h1>
+        <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">${params.intro}</p>
+        <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">
+          <p style="margin:0 0 8px 0"><strong>Empresa:</strong> ${params.companyName}</p>
+          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${params.referenceMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+          <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${params.summary.includedHoursUsed.toFixed(2)}h</p>
+          <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${params.summary.extraHoursUsed.toFixed(2)}h</p>
+          <p style="margin:0 0 8px 0"><strong>Memoria da hora extra:</strong> ${params.summary.extraHourBlocks}x hora cheia a ${formatCurrency(params.summary.extraHourlyRate)}${params.summary.extraHalfHourBlocks ? ` + ${params.summary.extraHalfHourBlocks}x meia hora a ${formatCurrency(params.summary.extraHalfHourRate)}` : ""}</p>
+          <p style="margin:0 0 8px 0"><strong>Visitas:</strong> ${params.summary.visitCount} a ${formatCurrency(params.summary.visitRate)}</p>
+          <p style="margin:0 0 8px 0"><strong>Valor base:</strong> ${formatCurrency(params.summary.subtotal)}</p>
+          <p style="margin:0"><strong>Valor total:</strong> ${formatCurrency(params.summary.total)}</p>
+        </div>
+        <div style="display:grid;gap:8px">${params.documentsHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function resolveReminderRecipients(companyId: string, emails: string[]) {
+  if (emails.length > 0) {
+    return emails;
+  }
+
+  const recipients = await prisma.companyNotificationRecipient.findMany({
+    where: {
+      companyId,
+      type: NotificationRecipientType.BILLING,
+      active: true,
+    },
+    select: {
+      email: true,
+    },
+  });
+
+  return recipients.map((recipient) => recipient.email);
+}
+
 export async function saveFinancialProfileAction(
   _prevState: FinancialFormState,
   formData: FormData,
@@ -79,6 +134,7 @@ export async function saveFinancialProfileAction(
   const includedHours = parseNumber(getValue(formData, "includedHours"));
   const hourlyRate = parseNumber(getValue(formData, "hourlyRate"));
   const extraHourlyRate = parseNumber(getValue(formData, "extraHourlyRate"));
+  const extraHalfHourRate = parseNumber(getValue(formData, "extraHalfHourRate"));
   const visitRate = parseNumber(getValue(formData, "visitRate"));
   const billingDay = Number(getValue(formData, "billingDay"));
 
@@ -100,6 +156,7 @@ export async function saveFinancialProfileAction(
       includedHours,
       hourlyRate,
       extraHourlyRate,
+      extraHalfHourRate,
       visitRate,
       billingDay,
     },
@@ -108,6 +165,7 @@ export async function saveFinancialProfileAction(
       includedHours,
       hourlyRate,
       extraHourlyRate,
+      extraHalfHourRate,
       visitRate,
       billingDay,
     },
@@ -125,7 +183,8 @@ export async function saveFinancialProfileAction(
   });
 
   revalidatePath("/financial");
-  return {};
+  revalidatePath("/financial/rules");
+  return { success: "Perfil financeiro atualizado." };
 }
 
 export async function generateFinancialStatementAction(
@@ -179,13 +238,13 @@ export async function generateFinancialStatementAction(
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
   const includedHours = Number(profile.includedHours);
   const baseFee = Number(profile.hourlyRate);
-  const extraRate = Number(profile.extraHourlyRate);
   const visitRate = Number(profile.visitRate);
   const visitCount = visitEntries.length;
   const includedHoursUsed = Math.min(totalHours, includedHours);
   const extraHoursUsed = Math.max(totalHours - includedHours, 0);
+  const extraCharge = calculateExtraCharge(extraHoursUsed, profile);
   const visitsTotal = visitCount > 0 ? visitCount * visitRate : 0;
-  const total = baseFee + extraHoursUsed * extraRate + visitsTotal;
+  const total = baseFee + extraCharge.total + visitsTotal;
 
   const existingStatement = await prisma.financialStatement.findFirst({
     where: {
@@ -255,6 +314,7 @@ export async function generateFinancialStatementAction(
   });
 
   revalidatePath("/financial");
+  revalidatePath("/financial/documents");
   return { success: `Fechamento de ${referenceMonth} gerado/atualizado com sucesso.` };
 }
 
@@ -269,6 +329,7 @@ export async function addFinancialDocumentAction(
   const storagePathInput = getValue(formData, "storagePath");
   const documentTypeValue = getValue(formData, "documentType");
   const dueDate = parseDate(getValue(formData, "dueDate"));
+  const notes = getValue(formData, "notes");
   const isAvailableToClient = getValue(formData, "isAvailableToClient") === "on";
   const reminderEnabled = getValue(formData, "reminderEnabled") === "on";
   const uploadedFile = formData.get("file");
@@ -314,6 +375,7 @@ export async function addFinancialDocumentAction(
       documentType,
       fileName,
       storagePath,
+      notes: notes || null,
       dueDate,
       isAvailableToClient,
       reminderEnabled,
@@ -334,7 +396,142 @@ export async function addFinancialDocumentAction(
   });
 
   revalidatePath("/financial");
-  return {};
+  revalidatePath("/financial/documents");
+  return { success: "Documento financeiro anexado." };
+}
+
+export async function updateFinancialDocumentAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode editar documentos." };
+  }
+
+  const documentId = getValue(formData, "documentId");
+  const fileNameInput = getValue(formData, "fileName");
+  const storagePathInput = getValue(formData, "storagePath");
+  const documentTypeValue = getValue(formData, "documentType");
+  const dueDate = parseDate(getValue(formData, "dueDate"));
+  const notes = getValue(formData, "notes");
+  const isAvailableToClient = getValue(formData, "isAvailableToClient") === "on";
+  const reminderEnabled = getValue(formData, "reminderEnabled") === "on";
+  const uploadedFile = formData.get("file");
+
+  const documentType =
+    Object.values(FinancialDocumentType).find((item) => item === documentTypeValue) ?? null;
+
+  if (!documentId || !documentType) {
+    return { error: "Documento invalido." };
+  }
+
+  const document = await prisma.financialDocument.findUnique({
+    where: { id: documentId },
+    include: {
+      financialStatement: {
+        select: {
+          companyId: true,
+        },
+      },
+    },
+  });
+
+  if (!document || document.financialStatement.companyId !== user.companyId) {
+    return { error: "Documento nao encontrado." };
+  }
+
+  let fileName = fileNameInput || document.fileName;
+  let storagePath = storagePathInput || document.storagePath;
+
+  if (uploadedFile instanceof File && uploadedFile.size > 0) {
+    const storedFile = await uploadStorageFile({
+      file: uploadedFile,
+      folder: "financial",
+    });
+    fileName = fileNameInput || storedFile.fileName;
+    storagePath = storedFile.storagePath;
+    await deleteStorageFile(document.storagePath).catch(() => undefined);
+  }
+
+  await prisma.financialDocument.update({
+    where: { id: document.id },
+    data: {
+      documentType,
+      fileName,
+      storagePath,
+      notes: notes || null,
+      dueDate,
+      isAvailableToClient,
+      reminderEnabled,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: document.financialStatement.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_document_edited",
+      entityType: "financial_document",
+      entityId: document.id,
+      description: `Documento financeiro editado: ${fileName}`,
+    },
+  });
+
+  revalidatePath("/financial");
+  revalidatePath("/financial/documents");
+  return { success: "Documento financeiro atualizado." };
+}
+
+export async function deleteFinancialDocumentAction(formData: FormData) {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return;
+  }
+
+  const documentId = getValue(formData, "documentId");
+  if (!documentId) {
+    return;
+  }
+
+  const document = await prisma.financialDocument.findUnique({
+    where: { id: documentId },
+    include: {
+      financialStatement: {
+        select: {
+          companyId: true,
+        },
+      },
+    },
+  });
+
+  if (!document || document.financialStatement.companyId !== user.companyId) {
+    return;
+  }
+
+  await prisma.financialDocument.delete({
+    where: { id: document.id },
+  });
+  await deleteStorageFile(document.storagePath).catch(() => undefined);
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: document.financialStatement.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_document_deleted",
+      entityType: "financial_document",
+      entityId: document.id,
+      description: `Documento financeiro removido: ${document.fileName}`,
+    },
+  });
+
+  revalidatePath("/financial");
+  revalidatePath("/financial/documents");
+  redirect("/financial/documents");
 }
 
 export async function addFinancialRecipientAction(
@@ -389,7 +586,8 @@ export async function addFinancialRecipientAction(
   });
 
   revalidatePath("/financial");
-  return {};
+  revalidatePath("/financial/rules");
+  return { success: "Destinatario financeiro salvo." };
 }
 
 export async function updateFinancialDocumentStatusAction(
@@ -446,7 +644,8 @@ export async function updateFinancialDocumentStatusAction(
   });
 
   revalidatePath("/financial");
-  return {};
+  revalidatePath("/financial/documents");
+  return { success: "Documento atualizado." };
 }
 
 export async function sendFinancialReminderAction(formData: FormData) {
@@ -457,7 +656,7 @@ export async function sendFinancialReminderAction(formData: FormData) {
     return;
   }
 
-  const [statement, recipients, runtime] = await Promise.all([
+  const [statement, rule, runtime] = await Promise.all([
     prisma.financialStatement.findUnique({
       where: { id: statementId },
       include: {
@@ -466,17 +665,17 @@ export async function sendFinancialReminderAction(formData: FormData) {
             name: true,
           },
         },
+        financialProfile: true,
         documents: true,
       },
     }),
-    prisma.companyNotificationRecipient.findMany({
+    prisma.financialReminderRule.findFirst({
       where: {
         companyId: user.companyId,
-        type: NotificationRecipientType.BILLING,
-        active: true,
+        enabled: true,
       },
-      select: {
-        email: true,
+      orderBy: {
+        createdAt: "asc",
       },
     }),
     getPlatformRuntimeConfig(),
@@ -486,9 +685,20 @@ export async function sendFinancialReminderAction(formData: FormData) {
     return;
   }
 
+  const recipients = await resolveReminderRecipients(statement.companyId, rule?.recipientEmails || []);
+
   if (recipients.length === 0) {
     return;
   }
+
+  const summary = buildFinancialSummary({
+    includedHoursUsed: Number(statement.includedHoursUsed),
+    extraHoursUsed: Number(statement.extraHoursUsed),
+    visitCount: statement.visitCount,
+    subtotal: Number(statement.subtotal),
+    total: Number(statement.total),
+    profile: statement.financialProfile,
+  });
 
   const docsHtml =
     statement.documents.length === 0
@@ -498,35 +708,34 @@ export async function sendFinancialReminderAction(formData: FormData) {
             const href = document.storagePath.startsWith("http")
               ? document.storagePath
               : `${runtime.appUrl}${document.storagePath}`;
-
             const dueDate = document.dueDate
               ? ` · vence em ${document.dueDate.toLocaleDateString("pt-BR")}`
               : "";
-            return `<p style="margin:0 0 8px 0"><strong>${document.documentType}</strong>${dueDate}: <a href="${href}">${document.fileName}</a></p>`;
+            const notes = document.notes ? `<br/><span style="color:#475569">${document.notes}</span>` : "";
+
+            return `<p style="margin:0 0 8px 0"><strong>${financialDocumentLabels[document.documentType]}</strong>${dueDate}: <a href="${href}">${document.fileName}</a>${notes}</p>`;
           })
           .join("");
 
   await Promise.all(
     recipients.map((recipient) =>
       sendMail({
-        to: recipient.email,
-        subject: `Cobranca ${statement.company.name} - ${statement.referenceMonth.toLocaleDateString("pt-BR", {
-          month: "long",
-          year: "numeric",
-        })}`,
-        html: `
-          <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
-            <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
-              <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
-              <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete financeiro</h1>
-              <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">
-                Seguem os documentos da cobranca de <strong>${statement.company.name}</strong>.
-              </p>
-              <p style="margin:0 0 16px 0"><strong>Valor total:</strong> R$ ${Number(statement.total).toFixed(2)}</p>
-              ${docsHtml}
-            </div>
-          </div>
-        `,
+        to: recipient,
+        subject:
+          rule?.emailSubject ||
+          `Cobranca ${statement.company.name} - ${statement.referenceMonth.toLocaleDateString("pt-BR", {
+            month: "long",
+            year: "numeric",
+          })}`,
+        html: buildReminderEmailHtml({
+          companyName: statement.company.name,
+          referenceMonth: statement.referenceMonth,
+          summary,
+          intro:
+            rule?.emailIntro ||
+            `Seguem os documentos e o resumo da cobranca de <strong>${statement.company.name}</strong>.`,
+          documentsHtml: docsHtml,
+        }),
       }),
     ),
   );
@@ -560,6 +769,120 @@ export async function sendFinancialReminderAction(formData: FormData) {
   }
 
   revalidatePath("/financial");
+}
+
+export async function saveFinancialReminderRuleAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode editar regras de cobranca." };
+  }
+
+  const ruleId = getValue(formData, "ruleId");
+  const name = getValue(formData, "name");
+  const documentTypeValue = getValue(formData, "documentType");
+  const daysBeforeDue = Number(getValue(formData, "daysBeforeDue"));
+  const frequencyDays = Number(getValue(formData, "frequencyDays"));
+  const enabled = getValue(formData, "enabled") === "on";
+  const recipientEmails = getValue(formData, "recipientEmails")
+    .split(/[,\n;]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  const emailSubject = getValue(formData, "emailSubject");
+  const emailIntro = getValue(formData, "emailIntro");
+  const documentType =
+    Object.values(FinancialDocumentType).find((item) => item === documentTypeValue) ?? null;
+
+  if (!name || !daysBeforeDue || !frequencyDays) {
+    return { error: "Preencha nome, prazo e frequencia." };
+  }
+
+  if (ruleId) {
+    await prisma.financialReminderRule.update({
+      where: { id: ruleId },
+      data: {
+        name,
+        documentType,
+        daysBeforeDue,
+        frequencyDays,
+        enabled,
+        recipientEmails,
+        emailSubject: emailSubject || null,
+        emailIntro: emailIntro || null,
+      },
+    });
+  } else {
+    await prisma.financialReminderRule.create({
+      data: {
+        companyId: user.companyId,
+        name,
+        documentType,
+        daysBeforeDue,
+        frequencyDays,
+        enabled,
+        recipientEmails,
+        emailSubject: emailSubject || null,
+        emailIntro: emailIntro || null,
+      },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: ruleId ? "financial_reminder_rule_updated" : "financial_reminder_rule_created",
+      entityType: "financial_reminder_rule",
+      entityId: ruleId || null,
+      description: `Regra de cobranca salva: ${name}`,
+    },
+  });
+
+  revalidatePath("/financial/rules");
+  return { success: "Regra de cobranca salva." };
+}
+
+export async function deleteFinancialReminderRuleAction(formData: FormData) {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return;
+  }
+
+  const ruleId = getValue(formData, "ruleId");
+  if (!ruleId) {
+    return;
+  }
+
+  const rule = await prisma.financialReminderRule.findUnique({
+    where: { id: ruleId },
+  });
+
+  if (!rule || rule.companyId !== user.companyId) {
+    return;
+  }
+
+  await prisma.financialReminderRule.delete({
+    where: { id: rule.id },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_reminder_rule_deleted",
+      entityType: "financial_reminder_rule",
+      entityId: rule.id,
+      description: `Regra de cobranca removida: ${rule.name}`,
+    },
+  });
+
+  revalidatePath("/financial/rules");
 }
 
 export async function updateFinancialStatementStatusAction(
@@ -624,5 +947,6 @@ export async function updateFinancialStatementStatusAction(
   });
 
   revalidatePath("/financial");
-  return {};
+  revalidatePath("/financial/documents");
+  return { success: "Status do fechamento atualizado." };
 }

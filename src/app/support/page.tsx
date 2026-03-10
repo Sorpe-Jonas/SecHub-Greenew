@@ -1,17 +1,9 @@
 import Link from "next/link";
-import { TicketPriority, TicketStatus } from "@prisma/client";
 
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { TicketCreateForm } from "@/components/support/ticket-create-form";
 import { canManageCompanyTickets, requireCurrentUser } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
-import {
-  buildTicketWhereClause,
-  getTicketCatalogItem,
-  ticketCatalog,
-  ticketPriorityLabels,
-  ticketStatusLabels,
-} from "@/lib/tickets";
+import { getTicketCatalogItem, ticketCatalog } from "@/lib/tickets";
 
 export default async function SupportPage({
   searchParams,
@@ -22,28 +14,7 @@ export default async function SupportPage({
   const params = await searchParams;
   const category = typeof params.category === "string" ? params.category : undefined;
   const subcategory = typeof params.subcategory === "string" ? params.subcategory : undefined;
-  const status = typeof params.status === "string" ? params.status : "";
-  const priority = typeof params.priority === "string" ? params.priority : "";
   const selectedCategory = getTicketCatalogItem(category);
-
-  const tickets = await prisma.ticket.findMany({
-    where: {
-      ...buildTicketWhereClause({
-        companyId: user.companyId,
-        userId: user.id,
-        role: user.role,
-      }),
-      ...(status ? { status: status as TicketStatus } : {}),
-      ...(priority ? { priority: priority as TicketPriority } : {}),
-    },
-    include: {
-      openedBy: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 20,
-  });
 
   return (
     <main className="supportShell">
@@ -119,51 +90,18 @@ export default async function SupportPage({
       <section className="supportPanel">
         <div className="panelHeader">
           <div>
-            <span className="eyebrow">Fila atual</span>
-            <h2>Ultimos tickets</h2>
+            <span className="eyebrow">Operacao</span>
+            <h2>Fila e relatorios separados</h2>
           </div>
-          <form className="quickActionRow" method="get">
-            <select className="selectInput" name="status" defaultValue={status}>
-              <option value="">Todos os status</option>
-              {Object.values(TicketStatus).map((item) => (
-                <option key={item} value={item}>
-                  {ticketStatusLabels[item]}
-                </option>
-              ))}
-            </select>
-            <select className="selectInput" name="priority" defaultValue={priority}>
-              <option value="">Todas as prioridades</option>
-              {Object.values(TicketPriority).map((item) => (
-                <option key={item} value={item}>
-                  {ticketPriorityLabels[item]}
-                </option>
-              ))}
-            </select>
-            <button className="secondaryButton" type="submit">
-              Filtrar
-            </button>
-          </form>
+          <Link className="secondaryButton linkButton" href="/support/queue">
+            Abrir fila
+          </Link>
         </div>
-        <div className="ticketTable">
-          {tickets.length === 0 ? (
-            <p className="helperText">Nenhum ticket encontrado para este usuario.</p>
-          ) : (
-            tickets.map((ticket) => (
-              <Link key={ticket.id} className="ticketRow" href={`/support/${ticket.id}`}>
-                <div>
-                  <strong>{ticket.title}</strong>
-                  <span>
-                    {ticket.openedBy.name || ticket.openedBy.email} · {ticket.createdAt.toLocaleDateString("pt-BR")}
-                  </span>
-                </div>
-                <div>
-                  <strong>{ticketStatusLabels[ticket.status]}</strong>
-                  <span>{ticketPriorityLabels[ticket.priority]}</span>
-                </div>
-              </Link>
-            ))
-          )}
-        </div>
+        <p className="helperText">
+          A listagem de tickets saiu desta tela para reduzir excesso de informacao. Em{" "}
+          <Link href="/support/queue">/support/queue</Link> voce encontra filtros por solicitante,
+          periodo, status, prioridade, exportacao CSV e resumo com indicadores.
+        </p>
       </section>
     </main>
   );

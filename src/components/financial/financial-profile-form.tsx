@@ -15,6 +15,7 @@ type FinancialProfileFormProps = {
     includedHours: string;
     hourlyRate: string;
     extraHourlyRate: string;
+    extraHalfHourRate: string;
     visitRate: string;
     billingDay: number;
   } | null;
@@ -50,6 +51,15 @@ export function FinancialProfileForm({ profile, canEdit }: FinancialProfileFormP
           name="extraHourlyRate"
           type="text"
           defaultValue={profile?.extraHourlyRate || "0"}
+          disabled={!canEdit}
+        />
+      </label>
+      <label>
+        Valor por meia hora excedente
+        <input
+          name="extraHalfHourRate"
+          type="text"
+          defaultValue={profile?.extraHalfHourRate || "0"}
           disabled={!canEdit}
         />
       </label>

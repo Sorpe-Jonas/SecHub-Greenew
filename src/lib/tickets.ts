@@ -30,6 +30,13 @@ export const ticketStatusLabels: Record<TicketStatus, string> = {
   CANCELED: "Cancelado",
 };
 
+export const activeTicketStatuses = [
+  TicketStatus.OPEN,
+  TicketStatus.TRIAGE,
+  TicketStatus.IN_PROGRESS,
+  TicketStatus.WAITING_USER,
+] as const;
+
 export const ticketCatalog = [
   {
     category: TicketCategory.PERSONAL,
@@ -112,4 +119,166 @@ export function buildTicketWhereClause(params: {
   return {
     openedById: params.userId,
   };
+}
+
+function getParam(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parseDateStart(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateEnd(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T23:59:59.999Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function getTicketFilters(params: Record<string, string | string[] | undefined>) {
+  return {
+    status: getParam(params, "status"),
+    priority: getParam(params, "priority"),
+    opener: getParam(params, "opener"),
+    companyId: getParam(params, "companyId"),
+    from: getParam(params, "from"),
+    to: getParam(params, "to"),
+    q: getParam(params, "q"),
+  };
+}
+
+export function buildTicketSearchWhereClause(params: {
+  companyId: string | null;
+  userId: string;
+  role: UserRole;
+  filters: Record<string, string | string[] | undefined>;
+}): Prisma.TicketWhereInput {
+  const baseWhere = buildTicketWhereClause({
+    companyId: params.companyId,
+    userId: params.userId,
+    role: params.role,
+  });
+  const filterValues = getTicketFilters(params.filters);
+  const where: Prisma.TicketWhereInput = { ...baseWhere };
+  const fromDate = parseDateStart(filterValues.from);
+  const toDate = parseDateEnd(filterValues.to);
+
+  if (params.role === UserRole.SUPER_ADMIN && filterValues.companyId) {
+    where.companyId = filterValues.companyId;
+  }
+
+  if (filterValues.status && Object.values(TicketStatus).includes(filterValues.status as TicketStatus)) {
+    where.status = filterValues.status as TicketStatus;
+  } else {
+    where.status = {
+      in: [...activeTicketStatuses],
+    };
+  }
+
+  if (
+    filterValues.priority &&
+    Object.values(TicketPriority).includes(filterValues.priority as TicketPriority)
+  ) {
+    where.priority = filterValues.priority as TicketPriority;
+  }
+
+  if (filterValues.opener && params.role !== UserRole.USER) {
+    where.openedBy = {
+      is: {
+        OR: [
+          {
+            name: {
+              contains: filterValues.opener,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: filterValues.opener,
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+    };
+  }
+
+  if (filterValues.q) {
+    where.AND = [
+      ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+      {
+        OR: [
+          {
+            title: {
+              contains: filterValues.q,
+              mode: "insensitive",
+            },
+          },
+          {
+            description: {
+              contains: filterValues.q,
+              mode: "insensitive",
+            },
+          },
+          {
+            subcategory: {
+              contains: filterValues.q,
+              mode: "insensitive",
+            },
+          },
+          {
+            openedBy: {
+              is: {
+                email: {
+                  contains: filterValues.q,
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+          {
+            openedBy: {
+              is: {
+                name: {
+                  contains: filterValues.q,
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ];
+  }
+
+  if (fromDate || toDate) {
+    where.createdAt = {
+      ...(fromDate ? { gte: fromDate } : {}),
+      ...(toDate ? { lte: toDate } : {}),
+    };
+  }
+
+  return where;
+}
+
+export function buildTicketExportQuery(params: Record<string, string | string[] | undefined>) {
+  const filters = getTicketFilters(params);
+  const query = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) {
+      query.set(key, value);
+    }
+  });
+
+  return query.toString();
 }

@@ -1,25 +1,23 @@
+import Link from "next/link";
 import { FinancialStatementStatus, UserRole } from "@prisma/client";
 
 import {
   sendFinancialReminderAction,
 } from "@/app/actions/financial-actions";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
-import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
 import { FinancialGenerateForm } from "@/components/financial/financial-generate-form";
-import { FinancialDocumentStatusForm } from "@/components/financial/financial-document-status-form";
 import { FinancialProfileForm } from "@/components/financial/financial-profile-form";
 import { FinancialRecipientList } from "@/components/financial/financial-recipient-list";
 import { FinancialRecipientForm } from "@/components/financial/financial-recipient-form";
 import { FinancialStatementStatusForm } from "@/components/financial/financial-statement-status-form";
 import { requireCurrentUser } from "@/lib/authz";
+import {
+  buildFinancialSummary,
+  calculateExtraCharge,
+  financialDocumentLabels,
+  formatCurrency,
+} from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
-
-function toCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
 
 function toMonthValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -103,7 +101,13 @@ export default async function FinancialPage() {
   const extraRate = Number(profile?.extraHourlyRate || 0);
   const visitRate = Number(profile?.visitRate || 0);
   const extraHours = Math.max(currentHours - includedHours, 0);
-  const projectedTotal = baseFee + extraHours * extraRate + currentVisits * visitRate;
+  const projectedTotal =
+    baseFee +
+    calculateExtraCharge(extraHours, {
+      extraHourlyRate: profile?.extraHourlyRate || extraRate,
+      extraHalfHourRate: profile?.extraHalfHourRate ?? null,
+    }).total +
+    currentVisits * visitRate;
 
   return (
     <main className="supportShell">
@@ -134,7 +138,7 @@ export default async function FinancialPage() {
         </article>
         <article className="statCard">
           <strong>Projecao atual</strong>
-          <h2>{toCurrency(projectedTotal)}</h2>
+          <h2>{formatCurrency(projectedTotal)}</h2>
           <span>Valor estimado usando o perfil financeiro vigente.</span>
         </article>
       </section>
@@ -157,6 +161,7 @@ export default async function FinancialPage() {
                     includedHours: profile.includedHours.toString(),
                     hourlyRate: profile.hourlyRate.toString(),
                     extraHourlyRate: profile.extraHourlyRate.toString(),
+                    extraHalfHourRate: profile.extraHalfHourRate?.toString() || "",
                     visitRate: profile.visitRate.toString(),
                     billingDay: profile.billingDay,
                   }
@@ -212,6 +217,16 @@ export default async function FinancialPage() {
             <span className="eyebrow">Historico</span>
             <h2>Ultimos fechamentos</h2>
           </div>
+          {isClientView ? null : (
+            <div className="quickActionRow">
+              <Link className="secondaryButton linkButton" href="/financial/documents">
+                Documentos
+              </Link>
+              <Link className="secondaryButton linkButton" href="/financial/rules">
+                Regras de cobranca
+              </Link>
+            </div>
+          )}
         </div>
         <div className="ticketTable">
           {statements.length === 0 ? (
@@ -232,7 +247,7 @@ export default async function FinancialPage() {
                     </span>
                   </div>
                   <div>
-                    <strong>{toCurrency(Number(statement.total))}</strong>
+                    <strong>{formatCurrency(Number(statement.total))}</strong>
                     <span>{statement.documents.length} documento(s)</span>
                   </div>
                 </div>
@@ -249,6 +264,25 @@ export default async function FinancialPage() {
                     <strong>Visitas</strong>
                     <span>{statement.visitCount}</span>
                   </div>
+                  {profile ? (
+                    <div>
+                      <strong>Hora extra</strong>
+                      <span>
+                        {(() => {
+                          const summary = buildFinancialSummary({
+                            includedHoursUsed: Number(statement.includedHoursUsed),
+                            extraHoursUsed: Number(statement.extraHoursUsed),
+                            visitCount: statement.visitCount,
+                            subtotal: Number(statement.subtotal),
+                            total: Number(statement.total),
+                            profile,
+                          });
+
+                          return `${summary.extraHourBlocks}x hora cheia${summary.extraHalfHourBlocks ? ` + ${summary.extraHalfHourBlocks}x meia hora` : ""}`;
+                        })()}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="documentList">
                   {statement.documents.filter((document) => !isClientView || document.isAvailableToClient).length === 0 ? (
@@ -264,8 +298,9 @@ export default async function FinancialPage() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          <strong>{document.documentType}</strong>
+                          <strong>{financialDocumentLabels[document.documentType]}</strong>
                           <span>{document.fileName}</span>
+                          <span>{document.notes || "Sem observacoes"}</span>
                           <span>
                             {document.dueDate
                               ? `Vencimento: ${document.dueDate.toLocaleDateString("pt-BR")}`
@@ -278,13 +313,6 @@ export default async function FinancialPage() {
                           </span>
                           <span>{document.storagePath}</span>
                         </a>
-                        {canEdit ? (
-                          <FinancialDocumentStatusForm
-                            documentId={document.id}
-                            isPaid={Boolean(document.paidAt)}
-                            reminderEnabled={document.reminderEnabled}
-                          />
-                        ) : null}
                       </div>
                     ))}
                 </div>
@@ -300,9 +328,6 @@ export default async function FinancialPage() {
                         Enviar lembrete financeiro
                       </button>
                     </form>
-                    <div style={{ marginTop: "1rem" }}>
-                      <FinancialDocumentForm statementId={statement.id} />
-                    </div>
                   </>
                 ) : null}
               </div>

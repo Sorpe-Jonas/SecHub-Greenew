@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -20,7 +19,12 @@ export function AuthPanel({ auth0Enabled }: { auth0Enabled: boolean }) {
     <section className="loginShell">
       <div className="loginCard">
         <div className="loginBrand">
-          <Image src="/sechub-logo.svg" alt="SecHub" width={164} height={44} priority />
+          <div className="brandHomeLink brandStatic" aria-label="SecHub">
+            <span className="brandMark" aria-hidden="true">
+              S
+            </span>
+            <span className="brandWordmark">sechub</span>
+          </div>
           <p>Portal central de acesso interno.</p>
         </div>
 

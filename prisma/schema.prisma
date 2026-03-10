@@ -144,6 +144,7 @@ model Company {
   visitEntries           VisitEntry[]
   financialProfiles      FinancialProfile[]
   financialStatements    FinancialStatement[]
+  financialReminderRules FinancialReminderRule[]
   notificationConfigs    NotificationConfig[]
   notificationRecipients CompanyNotificationRecipient[]
   invitations            UserInvitation[]
@@ -401,6 +402,7 @@ model FinancialProfile {
   includedHours  Decimal              @db.Decimal(10, 2)
   hourlyRate     Decimal              @db.Decimal(12, 2)
   extraHourlyRate Decimal             @db.Decimal(12, 2)
+  extraHalfHourRate Decimal?          @db.Decimal(12, 2)
   visitRate      Decimal              @db.Decimal(12, 2)
   billingDay     Int
   createdAt      DateTime             @default(now())
@@ -437,6 +439,7 @@ model FinancialDocument {
   documentType         FinancialDocumentType
   fileName             String
   storagePath          String
+  notes                String?               @db.Text
   dueDate              DateTime?
   isAvailableToClient  Boolean               @default(false)
   reminderEnabled      Boolean               @default(true)
@@ -449,6 +452,24 @@ model FinancialDocument {
   uploadedBy           User                  @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
 
   @@index([financialStatementId, documentType])
+}
+
+model FinancialReminderRule {
+  id                String                @id @default(cuid())
+  companyId         String
+  name              String
+  documentType      FinancialDocumentType?
+  daysBeforeDue     Int                   @default(7)
+  frequencyDays     Int                   @default(1)
+  enabled           Boolean               @default(true)
+  recipientEmails   String[]
+  emailSubject      String?
+  emailIntro        String?               @db.Text
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, enabled, documentType])
 }
 
 model NotificationConfig {

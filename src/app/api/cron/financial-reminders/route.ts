@@ -1,6 +1,7 @@
-import { FinancialStatementStatus, NotificationRecipientType } from "@prisma/client";
+import { FinancialStatementStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
+import { buildFinancialSummary, financialDocumentLabels, formatCurrency } from "@/lib/financial";
 import { notifyFinancialReminder, sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
@@ -27,14 +28,44 @@ function startOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+function buildEmailHtml(params: {
+  companyName: string;
+  referenceMonth: Date;
+  intro: string;
+  summary: ReturnType<typeof buildFinancialSummary>;
+  href: string;
+  fileName: string;
+  label: string;
+  dueDate?: Date | null;
+  notes?: string | null;
+}) {
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
+        <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
+        <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete de pagamento</h1>
+        <p style="margin:0 0 16px 0;line-height:1.6;color:#475569">${params.intro}</p>
+        <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">
+          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${params.referenceMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+          <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${params.summary.includedHoursUsed.toFixed(2)}h</p>
+          <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${params.summary.extraHoursUsed.toFixed(2)}h</p>
+          <p style="margin:0 0 8px 0"><strong>Visitas:</strong> ${params.summary.visitCount}</p>
+          <p style="margin:0"><strong>Total:</strong> ${formatCurrency(params.summary.total)}</p>
+        </div>
+        <p style="margin:0 0 12px 0"><strong>${params.label}</strong>: <a href="${params.href}">${params.fileName}</a></p>
+        <p style="margin:0 0 12px 0;color:#475569">Vencimento: ${params.dueDate ? params.dueDate.toLocaleDateString("pt-BR") : "Nao informado"}</p>
+        ${params.notes ? `<p style="margin:0;color:#475569">${params.notes}</p>` : ""}
+      </div>
+    </div>
+  `;
+}
+
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const today = startOfToday();
-  const sevenDaysFromNow = new Date(today);
-  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
   const runtime = await getPlatformRuntimeConfig();
 
   const documents = await prisma.financialDocument.findMany({
@@ -42,13 +73,8 @@ export async function POST(request: Request) {
       reminderEnabled: true,
       paidAt: null,
       dueDate: {
-        gte: today,
-        lt: sevenDaysFromNow,
+        not: null,
       },
-      OR: [
-        { lastReminderAt: null },
-        { lastReminderAt: { lt: today } },
-      ],
       financialStatement: {
         status: {
           in: [FinancialStatementStatus.OPEN, FinancialStatementStatus.BILLED, FinancialStatementStatus.OVERDUE],
@@ -64,6 +90,7 @@ export async function POST(request: Request) {
               name: true,
             },
           },
+          financialProfile: true,
         },
       },
     },
@@ -72,16 +99,52 @@ export async function POST(request: Request) {
   let remindersSent = 0;
 
   for (const document of documents) {
-    const recipients = await prisma.companyNotificationRecipient.findMany({
+    const rules = await prisma.financialReminderRule.findMany({
       where: {
         companyId: document.financialStatement.company.id,
-        type: NotificationRecipientType.BILLING,
-        active: true,
+        enabled: true,
+        OR: [{ documentType: null }, { documentType: document.documentType }],
       },
-      select: {
-        email: true,
+      orderBy: {
+        createdAt: "asc",
       },
     });
+
+    const matchingRule = rules.find((rule) => {
+      const startDate = new Date(document.dueDate!);
+      startDate.setDate(startDate.getDate() - rule.daysBeforeDue);
+
+      if (today < startDate || today > document.dueDate!) {
+        return false;
+      }
+
+      if (!document.lastReminderAt) {
+        return true;
+      }
+
+      const elapsedDays = Math.floor((today.getTime() - document.lastReminderAt.getTime()) / 86400000);
+      return elapsedDays >= rule.frequencyDays;
+    });
+
+    if (!matchingRule) {
+      continue;
+    }
+
+    const recipients =
+      matchingRule.recipientEmails.length > 0
+        ? matchingRule.recipientEmails
+        : (
+            await prisma.companyNotificationRecipient.findMany({
+              where: {
+                companyId: document.financialStatement.company.id,
+                type: "BILLING",
+                active: true,
+              },
+              select: {
+                email: true,
+              },
+            })
+          ).map((recipient) => recipient.email);
 
     if (recipients.length === 0) {
       continue;
@@ -90,25 +153,35 @@ export async function POST(request: Request) {
     const href = document.storagePath.startsWith("http")
       ? document.storagePath
       : `${runtime.appUrl}${document.storagePath}`;
+    const summary = buildFinancialSummary({
+      includedHoursUsed: Number(document.financialStatement.includedHoursUsed),
+      extraHoursUsed: Number(document.financialStatement.extraHoursUsed),
+      visitCount: document.financialStatement.visitCount,
+      subtotal: Number(document.financialStatement.subtotal),
+      total: Number(document.financialStatement.total),
+      profile: document.financialStatement.financialProfile,
+    });
 
     await Promise.all(
       recipients.map((recipient) =>
         sendMail({
-          to: recipient.email,
-          subject: `Lembrete de cobranca - ${document.financialStatement.company.name}`,
-          html: `
-            <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
-              <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
-                <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
-                <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete de pagamento</h1>
-                <p style="margin:0 0 16px 0;line-height:1.6;color:#475569">
-                  O documento <strong>${document.fileName}</strong> vence em
-                  <strong> ${document.dueDate?.toLocaleDateString("pt-BR")}</strong>.
-                </p>
-                <p style="margin:0 0 16px 0"><a href="${href}">${href}</a></p>
-              </div>
-            </div>
-          `,
+          to: recipient,
+          subject:
+            matchingRule.emailSubject ||
+            `Lembrete de cobranca - ${document.financialStatement.company.name}`,
+          html: buildEmailHtml({
+            companyName: document.financialStatement.company.name,
+            referenceMonth: document.financialStatement.referenceMonth,
+            intro:
+              matchingRule.emailIntro ||
+              `O documento financeiro da empresa <strong>${document.financialStatement.company.name}</strong> esta proximo do vencimento.`,
+            summary,
+            href,
+            fileName: document.fileName,
+            label: financialDocumentLabels[document.documentType],
+            dueDate: document.dueDate,
+            notes: document.notes,
+          }),
         }),
       ),
     );
