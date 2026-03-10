@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TicketPriority, TicketStatus } from "@prisma/client";
 
 import { TicketCreateForm } from "@/components/support/ticket-create-form";
 import { canManageCompanyTickets, requireCurrentUser } from "@/lib/authz";
@@ -20,14 +21,20 @@ export default async function SupportPage({
   const params = await searchParams;
   const category = typeof params.category === "string" ? params.category : undefined;
   const subcategory = typeof params.subcategory === "string" ? params.subcategory : undefined;
+  const status = typeof params.status === "string" ? params.status : "";
+  const priority = typeof params.priority === "string" ? params.priority : "";
   const selectedCategory = getTicketCatalogItem(category);
 
   const tickets = await prisma.ticket.findMany({
-    where: buildTicketWhereClause({
-      companyId: user.companyId,
-      userId: user.id,
-      role: user.role,
-    }),
+    where: {
+      ...buildTicketWhereClause({
+        companyId: user.companyId,
+        userId: user.id,
+        role: user.role,
+      }),
+      ...(status ? { status: status as TicketStatus } : {}),
+      ...(priority ? { priority: priority as TicketPriority } : {}),
+    },
     include: {
       openedBy: true,
     },
@@ -113,6 +120,27 @@ export default async function SupportPage({
             <span className="eyebrow">Fila atual</span>
             <h2>Ultimos tickets</h2>
           </div>
+          <form className="quickActionRow" method="get">
+            <select className="selectInput" name="status" defaultValue={status}>
+              <option value="">Todos os status</option>
+              {Object.values(TicketStatus).map((item) => (
+                <option key={item} value={item}>
+                  {ticketStatusLabels[item]}
+                </option>
+              ))}
+            </select>
+            <select className="selectInput" name="priority" defaultValue={priority}>
+              <option value="">Todas as prioridades</option>
+              {Object.values(TicketPriority).map((item) => (
+                <option key={item} value={item}>
+                  {ticketPriorityLabels[item]}
+                </option>
+              ))}
+            </select>
+            <button className="secondaryButton" type="submit">
+              Filtrar
+            </button>
+          </form>
         </div>
         <div className="ticketTable">
           {tickets.length === 0 ? (

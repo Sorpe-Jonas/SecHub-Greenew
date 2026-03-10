@@ -32,12 +32,24 @@ export function FinancialDocumentForm({ statementId }: { statementId: string }) 
         <input name="fileName" type="text" placeholder="boleto-marco-2026.pdf" />
       </label>
       <label>
+        Arquivo
+        <input name="file" type="file" />
+      </label>
+      <label>
         Caminho ou URL
         <input name="storagePath" type="text" placeholder="/docs/boleto-marco-2026.pdf" />
+      </label>
+      <label>
+        Vencimento
+        <input name="dueDate" type="date" />
       </label>
       <label className="checkboxRow">
         <input name="isAvailableToClient" type="checkbox" />
         <span>Disponibilizar para o cliente</span>
+      </label>
+      <label className="checkboxRow">
+        <input name="reminderEnabled" type="checkbox" defaultChecked />
+        <span>Enviar lembretes diarios ate o vencimento</span>
       </label>
       {state.error ? <p className="errorText">{state.error}</p> : null}
       <SubmitButton idleLabel="Anexar documento" pendingLabel="Anexando..." />

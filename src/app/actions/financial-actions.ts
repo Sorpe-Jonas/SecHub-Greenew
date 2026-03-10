@@ -1,10 +1,21 @@
 "use server";
 
-import { AuditModule, FinancialDocumentType, FinancialStatementStatus, UserRole } from "@prisma/client";
+import {
+  AuditModule,
+  FinancialDocumentType,
+  FinancialStatementStatus,
+  NotificationRecipientType,
+  UserRole,
+} from "@prisma/client";
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
 import { revalidatePath } from "next/cache";
+import path from "path";
 
 import { requireCurrentUser } from "@/lib/authz";
+import { sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 
 export type FinancialFormState = {
   error?: string;
@@ -17,6 +28,36 @@ function getValue(formData: FormData, key: string) {
 function parseNumber(value: string) {
   const parsed = Number(value.replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseDate(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function sanitizeFileName(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
+}
+
+async function storeFinancialFile(file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const safeName = sanitizeFileName(file.name || "documento");
+  const relativeDir = path.join("uploads", "financial");
+  const absoluteDir = path.join(process.cwd(), "public", relativeDir);
+  const finalName = `${Date.now()}-${randomUUID()}-${safeName}`;
+
+  await mkdir(absoluteDir, { recursive: true });
+  await writeFile(path.join(absoluteDir, finalName), buffer);
+
+  return {
+    fileName: file.name || safeName,
+    storagePath: `/${path.join(relativeDir, finalName).replace(/\\/g, "/")}`,
+  };
 }
 
 async function requireFinancialUser() {
@@ -221,16 +262,32 @@ export async function addFinancialDocumentAction(
   const user = await requireFinancialUser();
 
   const statementId = getValue(formData, "statementId");
-  const fileName = getValue(formData, "fileName");
-  const storagePath = getValue(formData, "storagePath");
+  const fileNameInput = getValue(formData, "fileName");
+  const storagePathInput = getValue(formData, "storagePath");
   const documentTypeValue = getValue(formData, "documentType");
+  const dueDate = parseDate(getValue(formData, "dueDate"));
   const isAvailableToClient = getValue(formData, "isAvailableToClient") === "on";
+  const reminderEnabled = getValue(formData, "reminderEnabled") === "on";
+  const uploadedFile = formData.get("file");
 
   const documentType =
     Object.values(FinancialDocumentType).find((item) => item === documentTypeValue) ?? null;
 
-  if (!statementId || !fileName || !storagePath || !documentType) {
+  if (!statementId || !documentType) {
     return { error: "Preencha os dados do documento financeiro." };
+  }
+
+  let fileName = fileNameInput;
+  let storagePath = storagePathInput;
+
+  if (uploadedFile instanceof File && uploadedFile.size > 0) {
+    const storedFile = await storeFinancialFile(uploadedFile);
+    fileName = fileName || storedFile.fileName;
+    storagePath = storedFile.storagePath;
+  }
+
+  if (!fileName || !storagePath) {
+    return { error: "Informe um arquivo ou um caminho/URL para o documento." };
   }
 
   const statement = await prisma.financialStatement.findUnique({
@@ -251,7 +308,9 @@ export async function addFinancialDocumentAction(
       documentType,
       fileName,
       storagePath,
+      dueDate,
       isAvailableToClient,
+      reminderEnabled,
       uploadedById: user.id,
     },
   });
@@ -265,6 +324,223 @@ export async function addFinancialDocumentAction(
       entityType: "financial_document",
       entityId: statement.id,
       description: `Documento ${documentType} anexado ao fechamento.`,
+    },
+  });
+
+  revalidatePath("/financial");
+  return {};
+}
+
+export async function addFinancialRecipientAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+  const email = getValue(formData, "email").toLowerCase();
+
+  if (!email) {
+    return { error: "Informe o email financeiro." };
+  }
+
+  const existingRecipient = await prisma.companyNotificationRecipient.findFirst({
+    where: {
+      companyId: user.companyId,
+      email,
+      type: NotificationRecipientType.BILLING,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingRecipient) {
+    await prisma.companyNotificationRecipient.update({
+      where: { id: existingRecipient.id },
+      data: {
+        active: true,
+      },
+    });
+  } else {
+    await prisma.companyNotificationRecipient.create({
+      data: {
+        companyId: user.companyId,
+        email,
+        type: NotificationRecipientType.BILLING,
+        active: true,
+      },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_recipient_added",
+      entityType: "notification_recipient",
+      description: `Destinatario financeiro adicionado: ${email}`,
+    },
+  });
+
+  revalidatePath("/financial");
+  return {};
+}
+
+export async function sendFinancialReminderAction(formData: FormData) {
+  const user = await requireFinancialUser();
+  const statementId = getValue(formData, "statementId");
+
+  if (!statementId) {
+    return;
+  }
+
+  const [statement, recipients, runtime] = await Promise.all([
+    prisma.financialStatement.findUnique({
+      where: { id: statementId },
+      include: {
+        company: {
+          select: {
+            name: true,
+          },
+        },
+        documents: true,
+      },
+    }),
+    prisma.companyNotificationRecipient.findMany({
+      where: {
+        companyId: user.companyId,
+        type: NotificationRecipientType.BILLING,
+        active: true,
+      },
+      select: {
+        email: true,
+      },
+    }),
+    getPlatformRuntimeConfig(),
+  ]);
+
+  if (!statement || (user.role !== UserRole.SUPER_ADMIN && statement.companyId !== user.companyId)) {
+    return;
+  }
+
+  if (recipients.length === 0) {
+    return;
+  }
+
+  const docsHtml =
+    statement.documents.length === 0
+      ? "<p style=\"margin:0;color:#475569\">Nenhum documento anexado.</p>"
+      : statement.documents
+          .map((document) => {
+            const href = document.storagePath.startsWith("http")
+              ? document.storagePath
+              : `${runtime.appUrl}${document.storagePath}`;
+
+            const dueDate = document.dueDate
+              ? ` · vence em ${document.dueDate.toLocaleDateString("pt-BR")}`
+              : "";
+            return `<p style="margin:0 0 8px 0"><strong>${document.documentType}</strong>${dueDate}: <a href="${href}">${document.fileName}</a></p>`;
+          })
+          .join("");
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      sendMail({
+        to: recipient.email,
+        subject: `Cobranca ${statement.company.name} - ${statement.referenceMonth.toLocaleDateString("pt-BR", {
+          month: "long",
+          year: "numeric",
+        })}`,
+        html: `
+          <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
+            <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
+              <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
+              <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete financeiro</h1>
+              <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">
+                Seguem os documentos da cobranca de <strong>${statement.company.name}</strong>.
+              </p>
+              <p style="margin:0 0 16px 0"><strong>Valor total:</strong> R$ ${Number(statement.total).toFixed(2)}</p>
+              ${docsHtml}
+            </div>
+          </div>
+        `,
+      }),
+    ),
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: statement.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_reminder_sent",
+      entityType: "financial_statement",
+      entityId: statement.id,
+      description: "Lembrete financeiro enviado manualmente.",
+    },
+  });
+
+  revalidatePath("/financial");
+}
+
+export async function updateFinancialStatementStatusAction(
+  _prevState: FinancialFormState,
+  formData: FormData,
+): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode alterar o status." };
+  }
+
+  const statementId = getValue(formData, "statementId");
+  const statusValue = getValue(formData, "status");
+  const status = Object.values(FinancialStatementStatus).find((item) => item === statusValue);
+
+  if (!statementId || !status) {
+    return { error: "Status invalido." };
+  }
+
+  const statement = await prisma.financialStatement.findUnique({
+    where: { id: statementId },
+    select: {
+      id: true,
+      companyId: true,
+    },
+  });
+
+  if (!statement || statement.companyId !== user.companyId) {
+    return { error: "Fechamento nao encontrado." };
+  }
+
+  await prisma.financialStatement.update({
+    where: { id: statement.id },
+    data: {
+      status,
+    },
+  });
+
+  if (status === FinancialStatementStatus.PAID) {
+    await prisma.financialDocument.updateMany({
+      where: {
+        financialStatementId: statement.id,
+        paidAt: null,
+      },
+      data: {
+        paidAt: new Date(),
+      },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: statement.companyId,
+      userId: user.id,
+      module: AuditModule.FINANCIAL,
+      action: "financial_statement_status_updated",
+      entityType: "financial_statement",
+      entityId: statement.id,
+      description: `Status do fechamento atualizado para ${status}.`,
     },
   });
 

@@ -1,8 +1,13 @@
 import { FinancialStatementStatus, UserRole } from "@prisma/client";
 
-import { generateFinancialStatementAction } from "@/app/actions/financial-actions";
+import {
+  generateFinancialStatementAction,
+  sendFinancialReminderAction,
+} from "@/app/actions/financial-actions";
 import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
 import { FinancialProfileForm } from "@/components/financial/financial-profile-form";
+import { FinancialRecipientForm } from "@/components/financial/financial-recipient-form";
+import { FinancialStatementStatusForm } from "@/components/financial/financial-statement-status-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -34,7 +39,7 @@ export default async function FinancialPage() {
   const referenceMonth = toMonthValue();
   const { start, end } = monthBounds(referenceMonth);
 
-  const [profile, statements, monthEntries, monthVisits] = await Promise.all([
+  const [profile, statements, monthEntries, monthVisits, recipients] = await Promise.all([
     prisma.financialProfile.findUnique({
       where: { companyId: user.companyId },
     }),
@@ -72,6 +77,16 @@ export default async function FinancialPage() {
       },
       select: {
         amount: true,
+      },
+    }),
+    prisma.companyNotificationRecipient.findMany({
+      where: {
+        companyId: user.companyId,
+        type: "BILLING",
+        active: true,
+      },
+      orderBy: {
+        email: "asc",
       },
     }),
   ]);
@@ -178,6 +193,40 @@ export default async function FinancialPage() {
         </section>
       </section>
 
+      <section className="ticketDetailGrid">
+        <section className="supportPanel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Cobranca</span>
+              <h2>Destinatarios financeiros</h2>
+            </div>
+          </div>
+          <div className="ticketTable">
+            {recipients.length === 0 ? (
+              <p className="helperText">Nenhum email financeiro configurado.</p>
+            ) : (
+              recipients.map((recipient) => (
+                <div key={recipient.id} className="ticketRow">
+                  <div>
+                    <strong>{recipient.email}</strong>
+                    <span>Recebe lembretes manuais de cobranca</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+        <section className="supportPanel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Novo destinatario</span>
+              <h2>Email de cobranca</h2>
+            </div>
+          </div>
+          {canEdit ? <FinancialRecipientForm /> : <p className="helperText">Somente o Admin Total pode editar.</p>}
+        </section>
+      </section>
+
       <section className="supportPanel">
         <div className="panelHeader">
           <div>
@@ -223,15 +272,50 @@ export default async function FinancialPage() {
                   </div>
                 </div>
                 <div className="documentList">
+                  {statement.documents.length === 0 ? (
+                    <p className="helperText">Nenhum documento anexado.</p>
+                  ) : null}
                   {statement.documents.map((document) => (
-                    <div key={document.id} className="subcardLink">
+                    <a
+                      key={document.id}
+                      className="subcardLink"
+                      href={document.storagePath}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <strong>{document.documentType}</strong>
                       <span>{document.fileName}</span>
+                      <span>
+                        {document.dueDate
+                          ? `Vencimento: ${document.dueDate.toLocaleDateString("pt-BR")}`
+                          : "Sem vencimento"}
+                      </span>
+                      <span>
+                        {document.paidAt
+                          ? `Pago em ${document.paidAt.toLocaleDateString("pt-BR")}`
+                          : `Lembretes enviados: ${document.reminderSentCount}`}
+                      </span>
                       <span>{document.storagePath}</span>
-                    </div>
+                    </a>
                   ))}
                 </div>
-                {canEdit ? <FinancialDocumentForm statementId={statement.id} /> : null}
+                {canEdit ? (
+                  <>
+                    <FinancialStatementStatusForm
+                      statementId={statement.id}
+                      status={statement.status}
+                    />
+                    <form action={sendFinancialReminderAction}>
+                      <input type="hidden" name="statementId" value={statement.id} />
+                      <button className="secondaryButton" type="submit">
+                        Enviar lembrete financeiro
+                      </button>
+                    </form>
+                    <div style={{ marginTop: "1rem" }}>
+                      <FinancialDocumentForm statementId={statement.id} />
+                    </div>
+                  </>
+                ) : null}
               </div>
             ))
           )}

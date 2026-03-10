@@ -437,7 +437,12 @@ model FinancialDocument {
   documentType         FinancialDocumentType
   fileName             String
   storagePath          String
+  dueDate              DateTime?
   isAvailableToClient  Boolean               @default(false)
+  reminderEnabled      Boolean               @default(true)
+  reminderSentCount    Int                   @default(0)
+  lastReminderAt       DateTime?
+  paidAt               DateTime?
   uploadedById         String
   createdAt            DateTime              @default(now())
   financialStatement   FinancialStatement    @relation(fields: [financialStatementId], references: [id], onDelete: Cascade)

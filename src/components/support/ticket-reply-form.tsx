@@ -27,6 +27,10 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
           placeholder="Adicione uma atualizacao, diagnostico ou resposta ao chamado."
         />
       </label>
+      <label className="checkboxRow">
+        <input name="isInternal" type="checkbox" />
+        <span>Nota interna (nao notificar o cliente)</span>
+      </label>
       <ReplyButton />
     </form>
   );
