@@ -66,21 +66,6 @@ const providers = [
   }),
 ];
 
-async function getUserIdentityByEmail(email?: string | null) {
-  if (!email) {
-    return null;
-  }
-
-  return prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
-    select: {
-      id: true,
-      role: true,
-      companyId: true,
-    },
-  });
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
@@ -123,17 +108,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      if (!token.sub && token.email) {
-        const dbUser = await getUserIdentityByEmail(token.email);
-
-        if (dbUser) {
-          token.sub = dbUser.id;
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.companyId = dbUser.companyId;
-        }
-      }
-
       return token;
     },
     async signIn({ user }) {
@@ -144,7 +118,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               where: { id: adapterUser.id },
               select: { id: true },
             })
-          : null) ?? (await getUserIdentityByEmail(adapterUser.email));
+          : null) ??
+        (adapterUser.email
+          ? await prisma.user.findUnique({
+              where: { email: adapterUser.email.toLowerCase() },
+              select: { id: true },
+            })
+          : null);
 
       if (!dbUser?.id) {
         return true;
@@ -162,24 +142,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        const dbUser = token.sub
-          ? await prisma.user.findUnique({
-              where: { id: token.sub },
-              select: {
-                id: true,
-                role: true,
-                companyId: true,
-              },
-            })
-          : await getUserIdentityByEmail(token.email);
+        const tokenRole = token.role as UserRole | undefined;
+        const tokenCompanyId = (token.companyId as string | null | undefined) ?? null;
 
-        if (!dbUser) {
-          return session;
-        }
-
-        session.user.id = dbUser.id;
-        session.user.role = dbUser.role ?? UserRole.USER;
-        session.user.companyId = dbUser.companyId ?? null;
+        session.user.id = (token.id || token.sub || "") as string;
+        session.user.role = tokenRole ?? UserRole.USER;
+        session.user.companyId = tokenCompanyId;
       }
 
       return session;
