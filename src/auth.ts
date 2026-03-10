@@ -68,13 +68,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   pages: {
     signIn: "/",
   },
   providers,
   callbacks: {
+    async jwt({ token, user }) {
+      if (user?.id) {
+        token.sub = user.id;
+      }
+
+      return token;
+    },
     async signIn({ user }) {
       const adapterUser = user as AdapterUser & { id?: string };
 
@@ -92,17 +99,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return true;
     },
-    async session({ session, user }) {
+    async session({ session, token }) {
       if (session.user) {
+        const userId = token.sub;
+
+        if (!userId) {
+          return session;
+        }
+
         const fullUser = await prisma.user.findUnique({
-          where: { id: user.id },
+          where: { id: userId },
           select: {
             role: true,
             companyId: true,
           },
         });
 
-        session.user.id = user.id;
+        session.user.id = userId;
         session.user.role = fullUser?.role ?? UserRole.USER;
         session.user.companyId = fullUser?.companyId ?? null;
       }
