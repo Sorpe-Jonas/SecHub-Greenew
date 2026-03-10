@@ -1,0 +1,536 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BlockKey {
+  PASSWORDS
+  TICKETS
+  GRAFANA
+  TIMESHEET
+  FINANCIAL
+  USERS
+  COMPANIES
+  AUDIT
+  SETTINGS
+}
+
+enum AuditModule {
+  AUTH
+  COMPANY
+  USER
+  PERMISSION
+  PASSWORD
+  TICKET
+  TIMESHEET
+  FINANCIAL
+  NOTIFICATION
+  SETTINGS
+}
+
+enum TicketCategory {
+  PERSONAL
+  COMPUTER
+  INFRASTRUCTURE
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  TRIAGE
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+  CANCELED
+}
+
+enum TicketOrigin {
+  PORTAL
+  EMAIL
+  TELEGRAM
+  INTERNAL
+}
+
+enum TimeEntryType {
+  SUPPORT
+  INTERNAL
+  ON_SITE
+  OTHER
+}
+
+enum RunningTimerStatus {
+  RUNNING
+  STOPPED
+  CANCELED
+}
+
+enum FinancialStatementStatus {
+  DRAFT
+  OPEN
+  BILLED
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum FinancialDocumentType {
+  INVOICE
+  BOLETO
+  RECEIPT
+  OTHER
+}
+
+enum NotificationType {
+  SMTP
+  TELEGRAM
+}
+
+enum NotificationRecipientType {
+  BILLING
+  TICKET
+  GENERAL
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELED
+}
+
+model Company {
+  id                     String                        @id @default(cuid())
+  name                   String
+  slug                   String                        @unique
+  status                 CompanyStatus                 @default(ACTIVE)
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  users                  User[]
+  blockPermissions       CompanyBlockPermission[]
+  passwordVaults         PasswordVault[]
+  passwordEntries        PasswordEntry[]
+  tickets                Ticket[]
+  timeEntries            TimeEntry[]
+  runningTimers          RunningTimer[]
+  visitEntries           VisitEntry[]
+  financialProfiles      FinancialProfile[]
+  financialStatements    FinancialStatement[]
+  notificationConfigs    NotificationConfig[]
+  notificationRecipients CompanyNotificationRecipient[]
+  invitations            UserInvitation[]
+  auditLogs              AuditLog[]
+}
+
+model User {
+  id                           String                @id @default(cuid())
+  companyId                    String?
+  name                         String?
+  email                        String                @unique
+  emailVerified                DateTime?
+  image                        String?
+  passwordHash                 String?
+  role                         UserRole              @default(USER)
+  status                       UserStatus            @default(PENDING)
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  company                      Company?              @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  accounts                     Account[]
+  sessions                     Session[]
+  blockPermissions             UserBlockPermission[]
+  auditLogs                    AuditLog[]
+  createdPasswordEntries       PasswordEntry[]       @relation("PasswordEntryCreatedBy")
+  updatedPasswordEntries       PasswordEntry[]       @relation("PasswordEntryUpdatedBy")
+  passwordEntryVersions        PasswordEntryVersion[]
+  openedTickets                Ticket[]              @relation("TicketOpenedBy")
+  assignedTickets              Ticket[]              @relation("TicketAssignedTo")
+  ticketMessages               TicketMessage[]
+  uploadedTicketAttachments    TicketAttachment[]
+  timeEntries                  TimeEntry[]
+  runningTimers                RunningTimer[]
+  visitEntries                 VisitEntry[]
+  uploadedFinancialDocuments   FinancialDocument[]
+  updatedGlobalSettings        GlobalSetting[]
+  createdInvitations           UserInvitation[]      @relation("InvitationCreatedBy")
+  receivedInvitations          UserInvitation[]      @relation("InvitationInvitedUser")
+}
+
+model CompanyBlockPermission {
+  id        String    @id @default(cuid())
+  companyId String
+  block     BlockKey
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, block])
+}
+
+model UserBlockPermission {
+  id        String    @id @default(cuid())
+  userId    String
+  block     BlockKey
+  canView   Boolean   @default(true)
+  canCreate Boolean   @default(false)
+  canEdit   Boolean   @default(false)
+  canDelete Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, block])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  companyId   String?
+  userId      String?
+  module      AuditModule
+  action      String
+  entityType  String
+  entityId    String?
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  company     Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, module, createdAt])
+  @@index([userId, createdAt])
+}
+
+model PasswordVault {
+  id          String          @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entries     PasswordEntry[]
+
+  @@unique([companyId, name])
+}
+
+model PasswordEntry {
+  id                String                 @id @default(cuid())
+  companyId         String
+  vaultId           String
+  title             String
+  username          String
+  encryptedPassword String                 @db.Text
+  url               String?
+  notes             String?                @db.Text
+  tags              String[]
+  faviconUrl        String?
+  createdById       String
+  updatedById       String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vault             PasswordVault          @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  createdBy         User                   @relation("PasswordEntryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("PasswordEntryUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  versions          PasswordEntryVersion[]
+
+  @@index([companyId, vaultId, deletedAt])
+}
+
+model PasswordEntryVersion {
+  id                String        @id @default(cuid())
+  passwordEntryId   String
+  versionNumber     Int
+  title             String
+  username          String
+  encryptedPassword String        @db.Text
+  url               String?
+  notes             String?       @db.Text
+  snapshotById      String
+  createdAt         DateTime      @default(now())
+  passwordEntry     PasswordEntry @relation(fields: [passwordEntryId], references: [id], onDelete: Cascade)
+  snapshotBy        User          @relation(fields: [snapshotById], references: [id], onDelete: Restrict)
+
+  @@unique([passwordEntryId, versionNumber])
+}
+
+model Ticket {
+  id            String             @id @default(cuid())
+  companyId     String
+  openedById    String
+  assignedToId  String?
+  category      TicketCategory
+  subcategory   String
+  title         String
+  description   String             @db.Text
+  priority      TicketPriority     @default(MEDIUM)
+  status        TicketStatus       @default(OPEN)
+  origin        TicketOrigin       @default(PORTAL)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  closedAt      DateTime?
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  openedBy      User               @relation("TicketOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  assignedTo    User?              @relation("TicketAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages      TicketMessage[]
+  attachments   TicketAttachment[]
+  timeEntries   TimeEntry[]
+  runningTimers RunningTimer[]
+  visitEntries  VisitEntry[]
+
+  @@index([companyId, status, createdAt])
+  @@index([openedById, createdAt])
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId    String
+  authorId    String
+  message     String   @db.Text
+  isInternal  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+}
+
+model TicketAttachment {
+  id           String   @id @default(cuid())
+  ticketId      String
+  uploadedById  String
+  fileName      String
+  mimeType      String
+  storagePath   String
+  createdAt     DateTime @default(now())
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([ticketId])
+}
+
+model TimeEntry {
+  id              String        @id @default(cuid())
+  companyId       String
+  userId          String
+  ticketId        String?
+  description     String?
+  entryType       TimeEntryType @default(SUPPORT)
+  startedAt       DateTime
+  endedAt         DateTime
+  durationMinutes Int
+  isManualEdit    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ticket          Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, startedAt])
+  @@index([userId, startedAt])
+}
+
+model RunningTimer {
+  id         String             @id @default(cuid())
+  companyId  String
+  userId     String
+  ticketId   String?
+  startedAt  DateTime
+  status     RunningTimerStatus @default(RUNNING)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ticket     Ticket?            @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([userId, status])
+}
+
+model VisitEntry {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String
+  ticketId    String?
+  visitDate   DateTime
+  description String?
+  amount      Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, visitDate])
+}
+
+model FinancialProfile {
+  id             String               @id @default(cuid())
+  companyId      String
+  includedHours  Decimal              @db.Decimal(10, 2)
+  hourlyRate     Decimal              @db.Decimal(12, 2)
+  extraHourlyRate Decimal             @db.Decimal(12, 2)
+  visitRate      Decimal              @db.Decimal(12, 2)
+  billingDay     Int
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  statements     FinancialStatement[]
+
+  @@unique([companyId])
+}
+
+model FinancialStatement {
+  id                String                    @id @default(cuid())
+  companyId         String
+  financialProfileId String
+  referenceMonth    DateTime
+  includedHoursUsed Decimal                   @db.Decimal(10, 2)
+  extraHoursUsed    Decimal                   @db.Decimal(10, 2)
+  visitCount        Int                       @default(0)
+  subtotal          Decimal                   @db.Decimal(12, 2)
+  total             Decimal                   @db.Decimal(12, 2)
+  status            FinancialStatementStatus  @default(DRAFT)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialProfile  FinancialProfile          @relation(fields: [financialProfileId], references: [id], onDelete: Restrict)
+  documents         FinancialDocument[]
+
+  @@index([companyId, referenceMonth])
+}
+
+model FinancialDocument {
+  id                   String                @id @default(cuid())
+  financialStatementId String
+  documentType         FinancialDocumentType
+  fileName             String
+  storagePath          String
+  isAvailableToClient  Boolean               @default(false)
+  uploadedById         String
+  createdAt            DateTime              @default(now())
+  financialStatement   FinancialStatement    @relation(fields: [financialStatementId], references: [id], onDelete: Cascade)
+  uploadedBy           User                  @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([financialStatementId, documentType])
+}
+
+model NotificationConfig {
+  id        String           @id @default(cuid())
+  companyId  String?
+  type      NotificationType
+  enabled   Boolean          @default(true)
+  config    Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  company   Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, type])
+}
+
+model CompanyNotificationRecipient {
+  id        String                    @id @default(cuid())
+  companyId  String
+  email     String
+  type      NotificationRecipientType
+  active    Boolean                   @default(true)
+  createdAt DateTime                  @default(now())
+  company   Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, type, active])
+}
+
+model GlobalSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model UserInvitation {
+  id             String           @id @default(cuid())
+  companyId      String
+  email          String
+  role           UserRole         @default(USER)
+  token          String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdById    String
+  invitedUserId  String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy      User             @relation("InvitationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  invitedUser    User?            @relation("InvitationInvitedUser", fields: [invitedUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, email, status])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?   @db.Text
+  access_token      String?   @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?   @db.Text
+  session_state     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
