@@ -237,9 +237,11 @@ export async function updateUserAccessAction(
   const currentUser = await requireCurrentUser();
   const userId = getValue(formData, "userId");
   const roleValue = getValue(formData, "role");
+  const statusValue = getValue(formData, "status");
   const role = Object.values(UserRole).find((item) => item === roleValue);
+  const status = Object.values(UserStatus).find((item) => item === statusValue);
 
-  if (!userId || !role) {
+  if (!userId || !role || !status) {
     return { error: "Usuario invalido." };
   }
 
@@ -253,6 +255,10 @@ export async function updateUserAccessAction(
 
   if (!targetUser) {
     return { error: "Usuario nao encontrado." };
+  }
+
+  if (targetUser.id === currentUser.id && status !== UserStatus.ACTIVE) {
+    return { error: "Nao e permitido bloquear o proprio usuario." };
   }
 
   if (
@@ -269,6 +275,7 @@ export async function updateUserAccessAction(
       where: { id: targetUser.id },
       data: {
         role,
+        status,
       },
     });
 

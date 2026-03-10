@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import {
   createPasswordEntryAction,
@@ -27,6 +27,7 @@ type PasswordEntryFormProps = {
 export function PasswordEntryForm({ mode, entry, initialPassword }: PasswordEntryFormProps) {
   const actionFn = mode === "create" ? createPasswordEntryAction : updatePasswordEntryAction;
   const [state, action] = useActionState(actionFn, initialState);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form className="ticketForm" action={action}>
@@ -41,12 +42,21 @@ export function PasswordEntryForm({ mode, entry, initialPassword }: PasswordEntr
       </label>
       <label>
         Senha
-        <input
-          name="password"
-          type="text"
-          defaultValue={initialPassword || ""}
-          placeholder="Senha da credencial"
-        />
+        <div className="secretField">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            defaultValue={initialPassword || ""}
+            placeholder="Senha da credencial"
+          />
+          <button
+            className="secondaryButton"
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+          >
+            {showPassword ? "Ocultar" : "Ver"}
+          </button>
+        </div>
       </label>
       <label>
         URL

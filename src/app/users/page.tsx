@@ -120,13 +120,16 @@ export default async function UsersPage() {
                 </div>
                 <div>
                   <strong>{user.role}</strong>
-                  <span>{user.company?.name || "Sem empresa"}</span>
+                  <span>
+                    {user.company?.name || "Sem empresa"} · {user.status}
+                  </span>
                 </div>
               </div>
               <UserAccessForm
                 user={{
                   id: user.id,
                   role: user.role,
+                  status: user.status,
                   permissions: user.blockPermissions.filter((item) => item.canView).map((item) => item.block),
                 }}
                 allowSuperAdmin={currentUser.role === UserRole.SUPER_ADMIN}

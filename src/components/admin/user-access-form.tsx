@@ -1,6 +1,6 @@
 "use client";
 
-import { BlockKey, UserRole } from "@prisma/client";
+import { BlockKey, UserRole, UserStatus } from "@prisma/client";
 import { useActionState } from "react";
 
 import { type AdminFormState, updateUserAccessAction } from "@/app/actions/admin-actions";
@@ -13,6 +13,7 @@ type UserAccessFormProps = {
   user: {
     id: string;
     role: UserRole;
+    status: UserStatus;
     permissions: BlockKey[];
   };
   allowSuperAdmin: boolean;
@@ -30,6 +31,14 @@ export function UserAccessForm({ user, allowSuperAdmin }: UserAccessFormProps) {
           <option value={UserRole.USER}>USER</option>
           <option value={UserRole.ADMIN}>ADMIN</option>
           {allowSuperAdmin ? <option value={UserRole.SUPER_ADMIN}>SUPER_ADMIN</option> : null}
+        </select>
+      </label>
+      <label>
+        Status
+        <select className="selectInput" name="status" defaultValue={user.status}>
+          <option value={UserStatus.ACTIVE}>ACTIVE</option>
+          <option value={UserStatus.DISABLED}>DISABLED</option>
+          <option value={UserStatus.PENDING}>PENDING</option>
         </select>
       </label>
       <div className="permissionGrid">

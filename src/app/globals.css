@@ -556,6 +556,22 @@ textarea:focus {
   word-break: break-all;
 }
 
+.secretField {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.secretInput {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.quickActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .notesBlock {
   display: grid;
   gap: 0.5rem;

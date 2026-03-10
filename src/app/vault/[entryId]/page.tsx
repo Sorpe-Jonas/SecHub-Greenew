@@ -6,6 +6,7 @@ import {
   getDecryptedPassword,
   rollbackPasswordEntryAction,
 } from "@/app/actions/password-actions";
+import { SecretField } from "@/components/vault/secret-field";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -72,7 +73,7 @@ export default async function VaultEntryDetailPage({
             </div>
             <div>
               <strong>Senha</strong>
-              <span className="secretValue">{decryptedPassword || "Nao disponivel"}</span>
+              {decryptedPassword ? <SecretField value={decryptedPassword} /> : <span>Nao disponivel</span>}
             </div>
             <div>
               <strong>URL</strong>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { VaultQuickActions } from "@/components/vault/vault-quick-actions";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -59,18 +60,26 @@ export default async function VaultPage() {
               <p className="helperText">Nenhuma credencial cadastrada ainda.</p>
             ) : (
               entries.map((entry) => (
-                <Link key={entry.id} className="ticketRow" href={`/vault/${entry.id}`}>
-                  <div>
-                    <strong>{entry.title}</strong>
-                    <span>
-                      {entry.username} · {entry.vault.name}
-                    </span>
-                  </div>
-                  <div>
-                    <strong>{entry.url ? "Com URL" : "Sem URL"}</strong>
-                    <span>{entry.tags.length > 0 ? entry.tags.join(", ") : "Sem tags"}</span>
-                  </div>
-                </Link>
+                <div key={entry.id} className="statementCard">
+                  <Link className="ticketRow" href={`/vault/${entry.id}`}>
+                    <div>
+                      <strong>{entry.title}</strong>
+                      <span>
+                        {entry.username} · {entry.vault.name}
+                      </span>
+                    </div>
+                    <div>
+                      <strong>{entry.url ? "Com URL" : "Sem URL"}</strong>
+                      <span>{entry.tags.length > 0 ? entry.tags.join(", ") : "Sem tags"}</span>
+                    </div>
+                  </Link>
+                  <VaultQuickActions
+                    entryId={entry.id}
+                    username={entry.username}
+                    url={entry.url}
+                    canDelete={user.role === "SUPER_ADMIN" || user.role === "ADMIN"}
+                  />
+                </div>
               ))
             )}
           </div>

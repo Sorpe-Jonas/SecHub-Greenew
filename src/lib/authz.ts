@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole, UserStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -20,6 +20,10 @@ export async function requireCurrentUser() {
   });
 
   if (!user) {
+    redirect("/");
+  }
+
+  if (user.status !== UserStatus.ACTIVE) {
     redirect("/");
   }
 
