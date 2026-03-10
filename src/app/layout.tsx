@@ -15,8 +15,8 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SecHub Greenew",
-  description: "Portal central com autenticacao SSO/Auth0 e email+senha para os aplicativos internos.",
+  title: "SecHub",
+  description: "Portal central com autenticacao, tickets, cofre de senhas e modulos internos.",
   manifest: "/manifest.webmanifest",
 };
 

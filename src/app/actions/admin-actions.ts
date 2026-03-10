@@ -208,11 +208,11 @@ export async function inviteUserAction(
 
   await sendMail({
     to: email,
-    subject: "Convite para acessar o SecHub Greenew",
+    subject: "Convite para acessar o SecHub",
     html: `
       <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
         <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
-          <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub Greenew</p>
+          <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
           <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Voce foi convidado para a plataforma</h1>
           <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">
             Um administrador criou o seu acesso. Use o link abaixo para definir sua senha e ativar sua conta.

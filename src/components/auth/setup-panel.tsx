@@ -42,7 +42,7 @@ export function SetupPanel() {
         <form className="authForm" action={action}>
           <label>
             Nome da empresa inicial
-            <input name="companyName" type="text" placeholder="Greenew" />
+            <input name="companyName" type="text" placeholder="Sua empresa" />
           </label>
           <label>
             Nome do Admin Total

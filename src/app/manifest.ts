@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "SecHub Greenew",
+    name: "SecHub",
     short_name: "SecHub",
     description: "Portal principal com autenticacao, tickets, cofre de senhas e timesheet.",
     start_url: "/",
@@ -12,9 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "pt-BR",
     icons: [
       {
-        src: "/favicon.ico",
+        src: "/icon.svg",
         sizes: "any",
-        type: "image/x-icon",
+        type: "image/svg+xml",
       },
     ],
   };

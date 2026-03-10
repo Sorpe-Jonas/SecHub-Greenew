@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -16,32 +17,17 @@ export function AuthPanel({ auth0Enabled }: { auth0Enabled: boolean }) {
   const [loginState, loginAction] = useActionState(loginWithPassword, initialState);
 
   return (
-    <section className="authShell">
-      <div className="authIntro">
-        <span className="eyebrow">SecHub Greenew</span>
-        <h1>Uma porta de entrada unica para os apps internos.</h1>
-        <p>
-          O login principal abre acesso aos modulos iniciais de senhas, suporte e observabilidade.
-        </p>
-        <div className="featureList">
-          <div>
-            <strong>SSO com Auth0</strong>
-            <span>Federacao centralizada para identidades corporativas.</span>
-          </div>
-          <div>
-            <strong>Email e senha</strong>
-            <span>Fluxo proprio para contas locais armazenadas em PostgreSQL.</span>
-          </div>
-          <div>
-            <strong>Dashboard modular</strong>
-            <span>Base pronta para adicionar novos cards e aplicativos depois.</span>
-          </div>
+    <section className="loginShell">
+      <div className="loginCard">
+        <div className="loginBrand">
+          <Image src="/sechub-logo.svg" alt="SecHub" width={164} height={44} priority />
+          <p>Portal central de acesso interno.</p>
         </div>
-      </div>
 
-      <div className="authCard">
-        <div className="modeSwitch singleMode" role="tablist" aria-label="Modo de autenticacao local">
-          <span className="modeButton active">Entrar</span>
+        <div className="loginHeading">
+          <span className="eyebrow">Acesso</span>
+          <h1>Entrar</h1>
+          <p>Use sua conta para acessar os modulos internos.</p>
         </div>
 
         {auth0Enabled ? (
@@ -50,15 +36,13 @@ export function AuthPanel({ auth0Enabled }: { auth0Enabled: boolean }) {
               Continuar com SSO Auth0
             </button>
           </form>
-        ) : (
-          <div className="notice">
-            Configure `AUTH_AUTH0_ID`, `AUTH_AUTH0_SECRET` e `AUTH_AUTH0_ISSUER` para habilitar o SSO.
-          </div>
-        )}
+        ) : null}
 
-        <div className="divider">
-          <span>ou use uma conta local</span>
-        </div>
+        {auth0Enabled ? (
+          <div className="divider">
+            <span>ou use uma conta local</span>
+          </div>
+        ) : null}
 
         <form className="authForm" action={loginAction}>
           <label>
@@ -74,9 +58,8 @@ export function AuthPanel({ auth0Enabled }: { auth0Enabled: boolean }) {
         </form>
 
         <p className="helperText">
-          O cadastro aberto fica desabilitado depois do primeiro acesso. Novas contas devem ser
-          criadas por convite interno.
-          <Link href="/dashboard"> Ver demonstracao protegida.</Link>
+          Novas contas sao liberadas apenas por convite interno.
+          <Link href="/dashboard"> Ir para o dashboard.</Link>
         </p>
       </div>
     </section>

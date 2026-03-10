@@ -19,7 +19,7 @@ function formatPerson(user?: Pick<User, "name" | "email"> | null) {
 
 function buildTicketTelegramMessage(ticket: TicketContext, message: string) {
   return [
-    "SecHub Greenew",
+    "SecHub",
     "",
     `Ticket: ${ticket.title}`,
     `Empresa: ${ticket.company?.name || "N/D"}`,
@@ -43,7 +43,7 @@ function buildTicketEmailHtml(params: {
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
       <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
-        <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub Greenew</p>
+        <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
         <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">${params.heading}</h1>
         <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">${params.intro}</p>
         <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">

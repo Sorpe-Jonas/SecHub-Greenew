@@ -64,9 +64,25 @@ const providers = [
   }),
 ];
 
+async function getUserIdentityByEmail(email?: string | null) {
+  if (!email) {
+    return null;
+  }
+
+  return prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+    select: {
+      id: true,
+      role: true,
+      companyId: true,
+    },
+  });
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
+  secret: process.env.AUTH_SECRET,
   session: {
     strategy: "jwt",
   },
@@ -76,21 +92,64 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   callbacks: {
     async jwt({ token, user }) {
-      if (user?.id) {
-        token.sub = user.id;
+      if (user) {
+        const authUser = user as AdapterUser & {
+          id?: string;
+          role?: UserRole;
+          companyId?: string | null;
+        };
+
+        if (authUser.id) {
+          token.sub = authUser.id;
+          token.id = authUser.id;
+        }
+
+        if (authUser.role) {
+          token.role = authUser.role;
+        }
+
+        if ("companyId" in authUser) {
+          token.companyId = authUser.companyId ?? null;
+        }
+
+        if (user.name) {
+          token.name = user.name;
+        }
+
+        if (user.email) {
+          token.email = user.email;
+        }
+      }
+
+      if (!token.sub && token.email) {
+        const dbUser = await getUserIdentityByEmail(token.email);
+
+        if (dbUser) {
+          token.sub = dbUser.id;
+          token.id = dbUser.id;
+          token.role = dbUser.role;
+          token.companyId = dbUser.companyId;
+        }
       }
 
       return token;
     },
     async signIn({ user }) {
       const adapterUser = user as AdapterUser & { id?: string };
+      const dbUser =
+        (adapterUser.id
+          ? await prisma.user.findUnique({
+              where: { id: adapterUser.id },
+              select: { id: true },
+            })
+          : null) ?? (await getUserIdentityByEmail(adapterUser.email));
 
-      if (!adapterUser.id) {
+      if (!dbUser?.id) {
         return true;
       }
 
       await prisma.user.update({
-        where: { id: adapterUser.id },
+        where: { id: dbUser.id },
         data: {
           lastLoginAt: new Date(),
           status: UserStatus.ACTIVE,
@@ -101,23 +160,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        const userId = token.sub;
+        const dbUser = token.sub
+          ? await prisma.user.findUnique({
+              where: { id: token.sub },
+              select: {
+                id: true,
+                role: true,
+                companyId: true,
+              },
+            })
+          : await getUserIdentityByEmail(token.email);
 
-        if (!userId) {
+        if (!dbUser) {
           return session;
         }
 
-        const fullUser = await prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            role: true,
-            companyId: true,
-          },
-        });
-
-        session.user.id = userId;
-        session.user.role = fullUser?.role ?? UserRole.USER;
-        session.user.companyId = fullUser?.companyId ?? null;
+        session.user.id = dbUser.id;
+        session.user.role = dbUser.role ?? UserRole.USER;
+        session.user.companyId = dbUser.companyId ?? null;
       }
 
       return session;
