@@ -24,6 +24,8 @@ export type AdminFormState = {
   error?: string;
 };
 
+const INVITATION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+
 function getValue(formData: FormData, key: string) {
   return formData.get(key)?.toString().trim() ?? "";
 }
@@ -36,6 +38,45 @@ function slugifyCompanyName(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
+}
+
+function canManageUserForCompany(
+  currentUser: Awaited<ReturnType<typeof requireCurrentUser>>,
+  companyId: string | null | undefined,
+) {
+  return (
+    currentUser.role === UserRole.SUPER_ADMIN ||
+    (currentUser.role === UserRole.ADMIN && currentUser.companyId === companyId)
+  );
+}
+
+function buildInvitationEmailHtml(inviteUrl: string) {
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
+        <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
+        <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Voce foi convidado para a plataforma</h1>
+        <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">
+          Um administrador criou o seu acesso. Use o link abaixo para definir sua senha e ativar sua conta.
+        </p>
+        <p style="margin:0 0 24px 0"><a href="${inviteUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;padding:14px 20px;border-radius:14px;text-decoration:none">Aceitar convite</a></p>
+        <p style="margin:0;color:#64748b;line-height:1.6">Se o botao nao funcionar, abra este link: ${inviteUrl}</p>
+      </div>
+    </div>
+  `;
+}
+
+async function sendInvitationEmail(email: string, token: string) {
+  const config = await getPlatformRuntimeConfig();
+  const inviteUrl = `${config.appUrl}/invite/${token}`;
+
+  await sendMail({
+    to: email,
+    subject: "Convite para acessar o SecHub",
+    html: buildInvitationEmailHtml(inviteUrl),
+  }).catch((error) => {
+    console.error("Falha ao enviar convite por email:", error);
+  });
 }
 
 export async function createCompanyAction(
@@ -137,7 +178,7 @@ export async function inviteUserAction(
   }
 
   const token = randomUUID();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+  const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
 
   const invitedUser =
     existingUser ??
@@ -203,28 +244,7 @@ export async function inviteUserAction(
     },
   });
 
-  const config = await getPlatformRuntimeConfig();
-  const inviteUrl = `${config.appUrl}/invite/${token}`;
-
-  await sendMail({
-    to: email,
-    subject: "Convite para acessar o SecHub",
-    html: `
-      <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;padding:24px;color:#102033">
-        <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe7f3">
-          <p style="margin:0 0 8px 0;color:#0e7490;font-size:12px;letter-spacing:0.08em;text-transform:uppercase">SecHub</p>
-          <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Voce foi convidado para a plataforma</h1>
-          <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">
-            Um administrador criou o seu acesso. Use o link abaixo para definir sua senha e ativar sua conta.
-          </p>
-          <p style="margin:0 0 24px 0"><a href="${inviteUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;padding:14px 20px;border-radius:14px;text-decoration:none">Aceitar convite</a></p>
-          <p style="margin:0;color:#64748b;line-height:1.6">Se o botao nao funcionar, abra este link: ${inviteUrl}</p>
-        </div>
-      </div>
-    `,
-  }).catch((error) => {
-    console.error("Falha ao enviar convite por email:", error);
-  });
+  await sendInvitationEmail(email, token);
 
   revalidatePath("/users");
   return {};
@@ -257,14 +277,15 @@ export async function updateUserAccessAction(
     return { error: "Usuario nao encontrado." };
   }
 
+  if (targetUser.role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Sem permissao para alterar um Admin Total." };
+  }
+
   if (targetUser.id === currentUser.id && status !== UserStatus.ACTIVE) {
     return { error: "Nao e permitido bloquear o proprio usuario." };
   }
 
-  if (
-    currentUser.role !== UserRole.SUPER_ADMIN &&
-    (currentUser.role !== UserRole.ADMIN || currentUser.companyId !== targetUser.companyId)
-  ) {
+  if (!canManageUserForCompany(currentUser, targetUser.companyId)) {
     return { error: "Sem permissao para alterar este usuario." };
   }
 
@@ -307,6 +328,231 @@ export async function updateUserAccessAction(
         entityType: "user",
         entityId: targetUser.id,
         description: `Acessos atualizados para ${targetUser.email}`,
+      },
+    });
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function updateInvitationAction(
+  _prevState: AdminFormState,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const currentUser = await requireCurrentUser();
+  const invitationId = getValue(formData, "invitationId");
+  const name = getValue(formData, "name");
+  const email = getValue(formData, "email").toLowerCase();
+  const roleValue = getValue(formData, "role");
+  const resendInvite = getValue(formData, "resendInvite") === "on";
+  const role = Object.values(UserRole).find((item) => item === roleValue);
+
+  if (!invitationId || !name || !email || !role) {
+    return { error: "Preencha nome, email e role." };
+  }
+
+  if (currentUser.role !== UserRole.SUPER_ADMIN && role === UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode enviar ou alterar convite de Admin Total." };
+  }
+
+  const invitation = await prisma.userInvitation.findUnique({
+    where: { id: invitationId },
+    include: {
+      invitedUser: true,
+    },
+  });
+
+  if (!invitation || invitation.status !== InvitationStatus.PENDING) {
+    return { error: "Convite pendente nao encontrado." };
+  }
+
+  if (!canManageUserForCompany(currentUser, invitation.companyId)) {
+    return { error: "Sem permissao para alterar este convite." };
+  }
+
+  if (!invitation.invitedUser) {
+    return { error: "Usuario vinculado ao convite nao encontrado." };
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUser && existingUser.id !== invitation.invitedUser.id) {
+    return { error: "Ja existe um usuario com este email." };
+  }
+
+  const nextToken = resendInvite ? randomUUID() : invitation.token;
+  const nextExpiresAt = resendInvite ? new Date(Date.now() + INVITATION_TTL_MS) : invitation.expiresAt;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: invitation.invitedUser!.id },
+      data: {
+        companyId: invitation.companyId,
+        name,
+        email,
+        role,
+        status: UserStatus.PENDING,
+      },
+    });
+
+    await tx.userBlockPermission.deleteMany({
+      where: {
+        userId: invitation.invitedUser!.id,
+      },
+    });
+
+    await tx.userBlockPermission.createMany({
+      data: getDefaultBlocksForRole(role).map((block) => ({
+        userId: invitation.invitedUser!.id,
+        block,
+        canView: true,
+        canCreate: role !== UserRole.USER,
+        canEdit: role !== UserRole.USER,
+        canDelete: role === UserRole.SUPER_ADMIN,
+      })),
+    });
+
+    await tx.userInvitation.update({
+      where: { id: invitation.id },
+      data: {
+        email,
+        role,
+        token: nextToken,
+        expiresAt: nextExpiresAt,
+        status: InvitationStatus.PENDING,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: invitation.companyId,
+        userId: currentUser.id,
+        module: AuditModule.USER,
+        action: resendInvite ? "user_invitation_updated_and_resent" : "user_invitation_updated",
+        entityType: "user_invitation",
+        entityId: invitation.id,
+        description: `${resendInvite ? "Convite atualizado e reenviado" : "Convite atualizado"} para ${email}`,
+      },
+    });
+  });
+
+  if (resendInvite) {
+    await sendInvitationEmail(email, nextToken);
+  }
+
+  revalidatePath("/users");
+  return {};
+}
+
+export async function deleteUserAction(
+  _prevState: AdminFormState,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const currentUser = await requireCurrentUser();
+  const userId = getValue(formData, "userId");
+
+  if (!userId) {
+    return { error: "Usuario invalido." };
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      companyId: true,
+      _count: {
+        select: {
+          createdPasswordEntries: true,
+          updatedPasswordEntries: true,
+          passwordEntryVersions: true,
+          openedTickets: true,
+          ticketMessages: true,
+          uploadedTicketAttachments: true,
+          timeEntries: true,
+          runningTimers: true,
+          visitEntries: true,
+          uploadedFinancialDocuments: true,
+          createdInvitations: true,
+        },
+      },
+    },
+  });
+
+  if (!targetUser) {
+    return { error: "Usuario nao encontrado." };
+  }
+
+  if (targetUser.id === currentUser.id) {
+    return { error: "Nao e permitido excluir o proprio usuario." };
+  }
+
+  if (targetUser.role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Sem permissao para excluir um Admin Total." };
+  }
+
+  if (!canManageUserForCompany(currentUser, targetUser.companyId)) {
+    return { error: "Sem permissao para excluir este usuario." };
+  }
+
+  const dependencyLabels = [
+    ["createdPasswordEntries", "cofres criados"],
+    ["updatedPasswordEntries", "cofres alterados"],
+    ["passwordEntryVersions", "versoes de cofres"],
+    ["openedTickets", "tickets abertos"],
+    ["ticketMessages", "mensagens em tickets"],
+    ["uploadedTicketAttachments", "anexos de tickets"],
+    ["timeEntries", "apontamentos de horas"],
+    ["runningTimers", "temporizadores em andamento"],
+    ["visitEntries", "visitas tecnicas"],
+    ["uploadedFinancialDocuments", "documentos financeiros"],
+    ["createdInvitations", "convites criados"],
+  ] as const;
+
+  const blockers = dependencyLabels
+    .map(([key, label]) => ({
+      label,
+      count: targetUser._count[key],
+    }))
+    .filter((item) => item.count > 0);
+
+  if (blockers.length > 0) {
+    return {
+      error: `Nao foi possivel excluir o usuario porque ele possui historico em: ${blockers
+        .map((item) => item.label)
+        .join(", ")}.`,
+    };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.userInvitation.updateMany({
+      where: {
+        invitedUserId: targetUser.id,
+        status: InvitationStatus.PENDING,
+      },
+      data: {
+        status: InvitationStatus.CANCELED,
+      },
+    });
+
+    await tx.user.delete({
+      where: { id: targetUser.id },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        companyId: targetUser.companyId,
+        userId: currentUser.id,
+        module: AuditModule.USER,
+        action: "user_deleted",
+        entityType: "user",
+        entityId: targetUser.id,
+        description: `Usuario excluido: ${targetUser.email}`,
       },
     });
   });

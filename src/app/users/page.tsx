@@ -1,6 +1,7 @@
 import { InvitationStatus, UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
+import { InvitationManagementForm } from "@/components/admin/invitation-management-form";
 import { UserAccessForm } from "@/components/admin/user-access-form";
 import { UserInviteForm } from "@/components/admin/user-invite-form";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
@@ -35,6 +36,11 @@ export default async function UsersPage() {
       },
       include: {
         company: true,
+        invitedUser: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -89,15 +95,27 @@ export default async function UsersPage() {
               <p className="helperText">Nenhum convite pendente no momento.</p>
             ) : (
               invitations.map((invitation) => (
-                <div key={invitation.id} className="ticketRow">
-                  <div>
-                    <strong>{invitation.email}</strong>
-                    <span>{invitation.company.name}</span>
+                <div key={invitation.id} className="statementCard">
+                  <div className="ticketRow">
+                    <div>
+                      <strong>{invitation.invitedUser?.name || invitation.email}</strong>
+                      <span>{invitation.email}</span>
+                    </div>
+                    <div>
+                      <strong>{invitation.role}</strong>
+                      <span>{invitation.company.name}</span>
+                    </div>
                   </div>
-                  <div>
-                    <strong>{invitation.role}</strong>
-                    <span>Expira em {invitation.expiresAt.toLocaleDateString("pt-BR")}</span>
-                  </div>
+                  <InvitationManagementForm
+                    invitation={{
+                      id: invitation.id,
+                      email: invitation.email,
+                      role: invitation.role,
+                      expiresAtIso: invitation.expiresAt.toISOString(),
+                      invitedUser: invitation.invitedUser,
+                    }}
+                    allowSuperAdmin={currentUser.role === UserRole.SUPER_ADMIN}
+                  />
                 </div>
               ))
             )}
