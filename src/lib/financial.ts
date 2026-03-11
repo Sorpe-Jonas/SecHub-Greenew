@@ -16,7 +16,10 @@ export function formatCurrency(value: number) {
 
 export function calculateExtraCharge(
   extraHoursUsed: number,
-  profile: Pick<FinancialProfile, "extraHourlyRate" | "extraHalfHourRate">,
+  profile: {
+    extraHourlyRate: FinancialProfile["extraHourlyRate"] | number;
+    extraHalfHourRate: FinancialProfile["extraHalfHourRate"] | number | null;
+  },
 ) {
   const hourlyRate = Number(profile.extraHourlyRate || 0);
   const halfHourRate =

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { UserRole } from "@prisma/client";
-import { redirect } from "next/navigation";
 
 import { deleteFinancialDocumentAction } from "@/app/actions/financial-actions";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
