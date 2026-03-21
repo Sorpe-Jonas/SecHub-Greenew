@@ -14,6 +14,53 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+export function formatDate(value: Date) {
+  return value.toLocaleDateString("pt-BR");
+}
+
+export function formatFinancialPeriodLabel(start: Date, endExclusive: Date) {
+  const endInclusive = addDays(endExclusive, -1);
+  return `${formatDate(start)} a ${formatDate(endInclusive)}`;
+}
+
+export function getMonthBounds(referenceMonth: string) {
+  const base = new Date(`${referenceMonth}-01T00:00:00`);
+  const start = new Date(base.getFullYear(), base.getMonth(), 1);
+  const end = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+  return { start, end };
+}
+
+export function getFinancialCycleBounds(params: {
+  anchorDate: Date;
+  contractStartDate?: Date | null;
+}) {
+  if (!params.contractStartDate) {
+    const referenceMonth = `${params.anchorDate.getFullYear()}-${String(params.anchorDate.getMonth() + 1).padStart(2, "0")}`;
+    return getMonthBounds(referenceMonth);
+  }
+
+  const cycleLengthDays = 30;
+  const contractStart = startOfDay(params.contractStartDate);
+  const anchor = startOfDay(params.anchorDate);
+  const elapsedMs = anchor.getTime() - contractStart.getTime();
+  const elapsedDays = Math.floor(elapsedMs / 86400000);
+  const cycleIndex = elapsedDays >= 0 ? Math.floor(elapsedDays / cycleLengthDays) : 0;
+  const start = addDays(contractStart, cycleIndex * cycleLengthDays);
+  const end = addDays(start, cycleLengthDays);
+
+  return { start, end };
+}
+
 export function calculateExtraCharge(
   extraHoursUsed: number,
   profile: {

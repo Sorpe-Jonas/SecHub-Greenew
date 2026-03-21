@@ -11,21 +11,26 @@ import { SubmitButton } from "@/components/auth/submit-button";
 const initialState: FinancialFormState = {};
 
 export function FinancialGenerateForm(props: {
-  referenceMonth: string;
+  referenceDate: string;
   canEdit: boolean;
   includedHours: number;
   extraHours: number;
   currentVisits: number;
+  cycleLabel: string;
 }) {
   const [state, action] = useActionState(generateFinancialStatementAction, initialState);
 
   return (
     <form className="ticketForm" action={action}>
       <label>
-        Mes de referencia
-        <input name="referenceMonth" type="month" defaultValue={props.referenceMonth} disabled={!props.canEdit} />
+        Data dentro do periodo
+        <input name="referenceDate" type="date" defaultValue={props.referenceDate} disabled={!props.canEdit} />
       </label>
       <div className="detailList">
+        <div>
+          <strong>Competencia</strong>
+          <span>{props.cycleLabel}</span>
+        </div>
         <div>
           <strong>Franquia</strong>
           <span>{props.includedHours.toFixed(2)}h</span>

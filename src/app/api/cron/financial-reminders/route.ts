@@ -1,7 +1,12 @@
 import { FinancialStatementStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-import { buildFinancialSummary, financialDocumentLabels, formatCurrency } from "@/lib/financial";
+import {
+  buildFinancialSummary,
+  financialDocumentLabels,
+  formatCurrency,
+  formatFinancialPeriodLabel,
+} from "@/lib/financial";
 import { notifyFinancialReminder, sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
@@ -30,7 +35,8 @@ function startOfToday() {
 
 function buildEmailHtml(params: {
   companyName: string;
-  referenceMonth: Date;
+  periodStart: Date;
+  periodEnd: Date;
   intro: string;
   summary: ReturnType<typeof buildFinancialSummary>;
   href: string;
@@ -46,7 +52,7 @@ function buildEmailHtml(params: {
         <h1 style="margin:0 0 16px 0;font-size:28px;line-height:1.05">Lembrete de pagamento</h1>
         <p style="margin:0 0 16px 0;line-height:1.6;color:#475569">${params.intro}</p>
         <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">
-          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${params.referenceMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${formatFinancialPeriodLabel(params.periodStart, params.periodEnd)}</p>
           <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${params.summary.includedHoursUsed.toFixed(2)}h</p>
           <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${params.summary.extraHoursUsed.toFixed(2)}h</p>
           <p style="margin:0 0 8px 0"><strong>Visitas:</strong> ${params.summary.visitCount}</p>
@@ -171,7 +177,8 @@ export async function POST(request: Request) {
             `Lembrete de cobranca - ${document.financialStatement.company.name}`,
           html: buildEmailHtml({
             companyName: document.financialStatement.company.name,
-            referenceMonth: document.financialStatement.referenceMonth,
+            periodStart: document.financialStatement.referenceMonth,
+            periodEnd: new Date(document.financialStatement.referenceMonth.getTime() + 30 * 86400000),
             intro:
               matchingRule.emailIntro ||
               `O documento financeiro da empresa <strong>${document.financialStatement.company.name}</strong> esta proximo do vencimento.`,

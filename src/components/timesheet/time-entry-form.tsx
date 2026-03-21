@@ -12,6 +12,13 @@ import { SubmitButton } from "@/components/auth/submit-button";
 
 const initialState: TimeEntryFormState = {};
 
+const entryTypeLabels: Record<TimeEntryType, string> = {
+  SUPPORT: "Suporte",
+  INTERNAL: "Interno",
+  ON_SITE: "Visita presencial",
+  OTHER: "Outro",
+};
+
 type TimeEntryFormProps = {
   mode: "create" | "edit";
   ticketOptions: Array<{ id: string; title: string }>;
@@ -48,7 +55,7 @@ export function TimeEntryForm({ mode, ticketOptions, entry }: TimeEntryFormProps
         <select className="selectInput" name="entryType" defaultValue={entry?.entryType || TimeEntryType.SUPPORT}>
           {Object.values(TimeEntryType).map((entryType) => (
             <option key={entryType} value={entryType}>
-              {entryType}
+              {entryTypeLabels[entryType]}
             </option>
           ))}
         </select>
@@ -71,6 +78,9 @@ export function TimeEntryForm({ mode, ticketOptions, entry }: TimeEntryFormProps
           placeholder="Descreva o atendimento, contexto e resultado."
         />
       </label>
+      <p className="helperText">
+        Lancamentos do tipo &quot;Visita presencial&quot; passam a contar automaticamente no painel financeiro.
+      </p>
       {state.error ? <p className="errorText">{state.error}</p> : null}
       <SubmitButton
         idleLabel={mode === "create" ? "Salvar lancamento" : "Atualizar lancamento"}

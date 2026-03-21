@@ -358,6 +358,7 @@ model TimeEntry {
   company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   ticket          Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  visitEntry      VisitEntry?
 
   @@index([companyId, startedAt])
   @@index([userId, startedAt])
@@ -385,6 +386,7 @@ model VisitEntry {
   companyId   String
   userId      String
   ticketId    String?
+  timeEntryId String?  @unique
   visitDate   DateTime
   description String?
   amount      Decimal  @db.Decimal(12, 2)
@@ -392,6 +394,7 @@ model VisitEntry {
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   ticket      Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  timeEntry   TimeEntry? @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@index([companyId, visitDate])
 }
@@ -405,6 +408,7 @@ model FinancialProfile {
   extraHalfHourRate Decimal?          @db.Decimal(12, 2)
   visitRate      Decimal              @db.Decimal(12, 2)
   billingDay     Int
+  contractStartDate DateTime?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)

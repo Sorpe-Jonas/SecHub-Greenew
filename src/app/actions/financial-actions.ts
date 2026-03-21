@@ -5,6 +5,7 @@ import {
   FinancialDocumentType,
   FinancialStatementStatus,
   NotificationRecipientType,
+  TimeEntryType,
   UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -15,7 +16,9 @@ import {
   buildFinancialSummary,
   calculateExtraCharge,
   financialDocumentLabels,
+  formatFinancialPeriodLabel,
   formatCurrency,
+  getFinancialCycleBounds,
 } from "@/lib/financial";
 import {
   notifyFinancialReminder,
@@ -66,16 +69,10 @@ async function requireFinancialUser() {
   };
 }
 
-function monthBounds(referenceMonth: string) {
-  const base = new Date(`${referenceMonth}-01T00:00:00`);
-  const start = new Date(base.getFullYear(), base.getMonth(), 1);
-  const end = new Date(base.getFullYear(), base.getMonth() + 1, 1);
-  return { start, end };
-}
-
 function buildReminderEmailHtml(params: {
   companyName: string;
-  referenceMonth: Date;
+  periodStart: Date;
+  periodEnd: Date;
   summary: ReturnType<typeof buildFinancialSummary>;
   intro: string;
   documentsHtml: string;
@@ -88,7 +85,7 @@ function buildReminderEmailHtml(params: {
         <p style="margin:0 0 24px 0;line-height:1.6;color:#475569">${params.intro}</p>
         <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">
           <p style="margin:0 0 8px 0"><strong>Empresa:</strong> ${params.companyName}</p>
-          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${params.referenceMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+          <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${formatFinancialPeriodLabel(params.periodStart, params.periodEnd)}</p>
           <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${params.summary.includedHoursUsed.toFixed(2)}h</p>
           <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${params.summary.extraHoursUsed.toFixed(2)}h</p>
           <p style="margin:0 0 8px 0"><strong>Memoria da hora extra:</strong> ${params.summary.extraHourBlocks}x hora cheia a ${formatCurrency(params.summary.extraHourlyRate)}${params.summary.extraHalfHourBlocks ? ` + ${params.summary.extraHalfHourBlocks}x meia hora a ${formatCurrency(params.summary.extraHalfHourRate)}` : ""}</p>
@@ -137,6 +134,7 @@ export async function saveFinancialProfileAction(
   const extraHalfHourRate = parseNumber(getValue(formData, "extraHalfHourRate"));
   const visitRate = parseNumber(getValue(formData, "visitRate"));
   const billingDay = Number(getValue(formData, "billingDay"));
+  const contractStartDate = parseDate(getValue(formData, "contractStartDate"));
 
   if (
     includedHours === null ||
@@ -159,6 +157,7 @@ export async function saveFinancialProfileAction(
       extraHalfHourRate,
       visitRate,
       billingDay,
+      contractStartDate,
     },
     create: {
       companyId: user.companyId,
@@ -168,6 +167,7 @@ export async function saveFinancialProfileAction(
       extraHalfHourRate,
       visitRate,
       billingDay,
+      contractStartDate,
     },
   });
 
@@ -197,18 +197,21 @@ export async function generateFinancialStatementAction(
     return { error: "Somente o Admin Total pode gerar fechamentos." };
   }
 
-  const referenceMonth = getValue(formData, "referenceMonth");
+  const referenceDate = parseDate(getValue(formData, "referenceDate"));
   const profile = await prisma.financialProfile.findUnique({
     where: { companyId: user.companyId },
   });
 
-  if (!profile || !referenceMonth) {
-    return { error: "Perfil financeiro ou mes de referencia invalido." };
+  if (!profile || !referenceDate) {
+    return { error: "Perfil financeiro ou data de referencia invalida." };
   }
 
-  const { start, end } = monthBounds(referenceMonth);
+  const { start, end } = getFinancialCycleBounds({
+    anchorDate: referenceDate,
+    contractStartDate: profile.contractStartDate,
+  });
 
-  const [timeEntries, visitEntries] = await Promise.all([
+  const [timeEntries, visitEntries, legacyOnSiteEntries] = await Promise.all([
     prisma.timeEntry.findMany({
       where: {
         companyId: user.companyId,
@@ -233,13 +236,29 @@ export async function generateFinancialStatementAction(
         amount: true,
       },
     }),
+    prisma.timeEntry.findMany({
+      where: {
+        companyId: user.companyId,
+        entryType: TimeEntryType.ON_SITE,
+        startedAt: {
+          gte: start,
+          lt: end,
+        },
+        visitEntry: {
+          is: null,
+        },
+      },
+      select: {
+        id: true,
+      },
+    }),
   ]);
 
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
   const includedHours = Number(profile.includedHours);
   const baseFee = Number(profile.hourlyRate);
   const visitRate = Number(profile.visitRate);
-  const visitCount = visitEntries.length;
+  const visitCount = visitEntries.length + legacyOnSiteEntries.length;
   const includedHoursUsed = Math.min(totalHours, includedHours);
   const extraHoursUsed = Math.max(totalHours - includedHours, 0);
   const extraCharge = calculateExtraCharge(extraHoursUsed, profile);
@@ -292,7 +311,7 @@ export async function generateFinancialStatementAction(
       module: AuditModule.FINANCIAL,
       action: "financial_statement_generated",
       entityType: "financial_statement",
-      description: `Fechamento financeiro gerado para ${referenceMonth}.`,
+      description: `Fechamento financeiro gerado para ${formatFinancialPeriodLabel(start, end)}.`,
     },
   });
 
@@ -305,7 +324,7 @@ export async function generateFinancialStatementAction(
 
   await notifyFinancialStatementGenerated({
     companyName: company?.name,
-    referenceMonth,
+    referenceMonth: formatFinancialPeriodLabel(start, end),
     total,
     extraHoursUsed,
     visitCount,
@@ -315,7 +334,7 @@ export async function generateFinancialStatementAction(
 
   revalidatePath("/financial");
   revalidatePath("/financial/documents");
-  return { success: `Fechamento de ${referenceMonth} gerado/atualizado com sucesso.` };
+  return { success: `Fechamento de ${formatFinancialPeriodLabel(start, end)} gerado/atualizado com sucesso.` };
 }
 
 export async function addFinancialDocumentAction(
@@ -723,13 +742,14 @@ export async function sendFinancialReminderAction(formData: FormData) {
         to: recipient,
         subject:
           rule?.emailSubject ||
-          `Cobranca ${statement.company.name} - ${statement.referenceMonth.toLocaleDateString("pt-BR", {
-            month: "long",
-            year: "numeric",
-          })}`,
+          `Cobranca ${statement.company.name} - ${formatFinancialPeriodLabel(
+            statement.referenceMonth,
+            new Date(statement.referenceMonth.getTime() + 30 * 86400000),
+          )}`,
         html: buildReminderEmailHtml({
           companyName: statement.company.name,
-          referenceMonth: statement.referenceMonth,
+          periodStart: statement.referenceMonth,
+          periodEnd: new Date(statement.referenceMonth.getTime() + 30 * 86400000),
           summary,
           intro:
             rule?.emailIntro ||

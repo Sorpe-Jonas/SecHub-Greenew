@@ -37,6 +37,65 @@ async function requireTimesheetUser() {
   };
 }
 
+async function syncVisitEntryForTimeEntry(params: {
+  entryId: string;
+  companyId: string;
+  userId: string;
+  ticketId: string | null;
+  description: string;
+  entryType: TimeEntryType;
+  startedAt: Date;
+}) {
+  const existingVisit = await prisma.visitEntry.findUnique({
+    where: {
+      timeEntryId: params.entryId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (params.entryType !== TimeEntryType.ON_SITE) {
+    if (existingVisit) {
+      await prisma.visitEntry.delete({
+        where: { id: existingVisit.id },
+      });
+    }
+    return;
+  }
+
+  const profile = await prisma.financialProfile.findUnique({
+    where: {
+      companyId: params.companyId,
+    },
+    select: {
+      visitRate: true,
+    },
+  });
+
+  const visitData = {
+    companyId: params.companyId,
+    userId: params.userId,
+    ticketId: params.ticketId,
+    timeEntryId: params.entryId,
+    visitDate: params.startedAt,
+    description: params.description,
+    amount: profile?.visitRate ?? 0,
+  };
+
+  if (existingVisit) {
+    await prisma.visitEntry.update({
+      where: { id: existingVisit.id },
+      data: visitData,
+    });
+    return;
+  }
+
+  await prisma.visitEntry.create({
+    data: visitData,
+  });
+}
+
 export async function startTimerAction(formData: FormData) {
   const user = await requireTimesheetUser();
   const ticketId = getValue(formData, "ticketId");
@@ -177,7 +236,18 @@ export async function createManualTimeEntryAction(
     },
   });
 
+  await syncVisitEntryForTimeEntry({
+    entryId: entry.id,
+    companyId: user.companyId,
+    userId: user.id,
+    ticketId: ticketId || null,
+    description,
+    entryType,
+    startedAt,
+  });
+
   revalidatePath("/timesheet");
+  revalidatePath("/financial");
   return {};
 }
 
@@ -238,7 +308,18 @@ export async function updateTimeEntryAction(
     },
   });
 
+  await syncVisitEntryForTimeEntry({
+    entryId: entry.id,
+    companyId: user.companyId,
+    userId: user.id,
+    ticketId: ticketId || null,
+    description,
+    entryType,
+    startedAt,
+  });
+
   revalidatePath("/timesheet");
+  revalidatePath("/financial");
   return {};
 }
 
@@ -276,6 +357,7 @@ export async function deleteTimeEntryAction(formData: FormData) {
   ]);
 
   revalidatePath("/timesheet");
+  revalidatePath("/financial");
   revalidatePath(`/timesheet/${entry.id}`);
   redirect("/timesheet");
 }

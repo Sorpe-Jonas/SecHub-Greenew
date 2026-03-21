@@ -18,6 +18,7 @@ type FinancialProfileFormProps = {
     extraHalfHourRate: string;
     visitRate: string;
     billingDay: number;
+    contractStartDate: string;
   } | null;
   canEdit: boolean;
 };
@@ -80,6 +81,15 @@ export function FinancialProfileForm({ profile, canEdit }: FinancialProfileFormP
           min="1"
           max="28"
           defaultValue={profile?.billingDay || 5}
+          disabled={!canEdit}
+        />
+      </label>
+      <label>
+        Data de assinatura do contrato
+        <input
+          name="contractStartDate"
+          type="date"
+          defaultValue={profile?.contractStartDate || ""}
           disabled={!canEdit}
         />
       </label>

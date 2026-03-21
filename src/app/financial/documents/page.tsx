@@ -6,7 +6,7 @@ import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
 import { FinancialDocumentStatusForm } from "@/components/financial/financial-document-status-form";
 import { requireCurrentUser } from "@/lib/authz";
-import { financialDocumentLabels } from "@/lib/financial";
+import { financialDocumentLabels, formatFinancialPeriodLabel } from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
 
 function toDateValue(date: Date | null) {
@@ -92,10 +92,10 @@ export default async function FinancialDocumentsPage() {
           <FinancialDocumentForm
             statementOptions={statements.map((statement) => ({
               id: statement.id,
-              label: statement.referenceMonth.toLocaleDateString("pt-BR", {
-                month: "long",
-                year: "numeric",
-              }),
+              label: formatFinancialPeriodLabel(
+                statement.referenceMonth,
+                new Date(statement.referenceMonth.getTime() + 30 * 86400000),
+              ),
             }))}
           />
         </section>
@@ -118,10 +118,10 @@ export default async function FinancialDocumentsPage() {
                   <div>
                     <strong>{financialDocumentLabels[document.documentType]}</strong>
                     <span>
-                      {document.financialStatement.referenceMonth.toLocaleDateString("pt-BR", {
-                        month: "long",
-                        year: "numeric",
-                      })}{" "}
+                      {formatFinancialPeriodLabel(
+                        document.financialStatement.referenceMonth,
+                        new Date(document.financialStatement.referenceMonth.getTime() + 30 * 86400000),
+                      )}{" "}
                       · {document.fileName}
                     </span>
                   </div>
@@ -156,10 +156,10 @@ export default async function FinancialDocumentsPage() {
                       }}
                       statementOptions={statements.map((statement) => ({
                         id: statement.id,
-                        label: statement.referenceMonth.toLocaleDateString("pt-BR", {
-                          month: "long",
-                          year: "numeric",
-                        }),
+                        label: formatFinancialPeriodLabel(
+                          statement.referenceMonth,
+                          new Date(statement.referenceMonth.getTime() + 30 * 86400000),
+                        ),
                       }))}
                     />
                     <FinancialDocumentStatusForm
