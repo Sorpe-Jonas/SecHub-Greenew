@@ -10,6 +10,7 @@ import { FinancialRecipientForm } from "@/components/financial/financial-recipie
 import { requireCurrentUser } from "@/lib/authz";
 import { financialDocumentLabels } from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
+import { isMissingSchemaError } from "@/lib/prisma-errors";
 
 export default async function FinancialRulesPage() {
   const user = await requireCurrentUser();
@@ -22,26 +23,50 @@ export default async function FinancialRulesPage() {
     return null;
   }
 
-  const [rules, recipients] = await Promise.all([
-    prisma.financialReminderRule.findMany({
-      where: {
-        companyId: user.companyId,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    }),
-    prisma.companyNotificationRecipient.findMany({
-      where: {
-        companyId: user.companyId,
-        type: "BILLING",
-        active: true,
-      },
-      orderBy: {
-        email: "asc",
-      },
-    }),
-  ]);
+  let rules;
+  let recipients;
+
+  try {
+    [rules, recipients] = await Promise.all([
+      prisma.financialReminderRule.findMany({
+        where: {
+          companyId: user.companyId,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      }),
+      prisma.companyNotificationRecipient.findMany({
+        where: {
+          companyId: user.companyId,
+          type: "BILLING",
+          active: true,
+        },
+        orderBy: {
+          email: "asc",
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial rules page schema is out of date.", error);
+
+      return (
+        <main className="supportShell">
+          <section className="supportHeader">
+            <div>
+              <BrandHomeLink />
+              <span className="eyebrow">Financeiro / Regras</span>
+              <h1>Regras temporariamente indisponiveis</h1>
+              <p>O banco de dados de producao ainda nao recebeu a estrutura desta area.</p>
+            </div>
+          </section>
+        </main>
+      );
+    }
+
+    throw error;
+  }
 
   return (
     <main className="supportShell">

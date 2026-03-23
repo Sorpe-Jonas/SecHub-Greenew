@@ -8,6 +8,7 @@ import { FinancialDocumentStatusForm } from "@/components/financial/financial-do
 import { requireCurrentUser } from "@/lib/authz";
 import { financialDocumentLabels, formatFinancialPeriodLabel } from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
+import { isMissingSchemaError } from "@/lib/prisma-errors";
 
 function toDateValue(date: Date | null) {
   if (!date) {
@@ -24,41 +25,65 @@ export default async function FinancialDocumentsPage() {
     return null;
   }
 
-  const [statements, documents] = await Promise.all([
-    prisma.financialStatement.findMany({
-      where: {
-        companyId: user.companyId,
-      },
-      orderBy: {
-        referenceMonth: "desc",
-      },
-      select: {
-        id: true,
-        referenceMonth: true,
-      },
-      take: 24,
-    }),
-    prisma.financialDocument.findMany({
-      where: {
-        financialStatement: {
+  let statements;
+  let documents;
+
+  try {
+    [statements, documents] = await Promise.all([
+      prisma.financialStatement.findMany({
+        where: {
           companyId: user.companyId,
         },
-        ...(user.role === UserRole.USER ? { isAvailableToClient: true } : {}),
-      },
-      include: {
-        financialStatement: {
-          select: {
-            referenceMonth: true,
-            total: true,
+        orderBy: {
+          referenceMonth: "desc",
+        },
+        select: {
+          id: true,
+          referenceMonth: true,
+        },
+        take: 24,
+      }),
+      prisma.financialDocument.findMany({
+        where: {
+          financialStatement: {
+            companyId: user.companyId,
+          },
+          ...(user.role === UserRole.USER ? { isAvailableToClient: true } : {}),
+        },
+        include: {
+          financialStatement: {
+            select: {
+              referenceMonth: true,
+              total: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 200,
-    }),
-  ]);
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 200,
+      }),
+    ]);
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial documents page schema is out of date.", error);
+
+      return (
+        <main className="supportShell">
+          <section className="supportHeader">
+            <div>
+              <BrandHomeLink />
+              <span className="eyebrow">Financeiro / Documentos</span>
+              <h1>Documentos temporariamente indisponiveis</h1>
+              <p>O banco de dados de producao ainda nao recebeu a estrutura desta area.</p>
+            </div>
+          </section>
+        </main>
+      );
+    }
+
+    throw error;
+  }
 
   const canEdit = user.role === UserRole.SUPER_ADMIN;
   const isClientView = user.role === UserRole.USER;

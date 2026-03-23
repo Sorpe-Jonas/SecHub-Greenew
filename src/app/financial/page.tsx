@@ -20,6 +20,7 @@ import {
   getFinancialCycleBounds,
 } from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
+import { isMissingSchemaError } from "@/lib/prisma-errors";
 
 function toDateValue(date = new Date()) {
   return date.toISOString().slice(0, 10);
@@ -32,33 +33,73 @@ export default async function FinancialPage() {
     return null;
   }
 
-  const [profile, statements, recipients] = await Promise.all([
-    prisma.financialProfile.findUnique({
-      where: { companyId: user.companyId },
-    }),
-    prisma.financialStatement.findMany({
-      where: {
-        companyId: user.companyId,
-      },
-      include: {
-        documents: true,
-      },
-      orderBy: {
-        referenceMonth: "desc",
-      },
-      take: 12,
-    }),
-    prisma.companyNotificationRecipient.findMany({
-      where: {
-        companyId: user.companyId,
-        type: "BILLING",
-        active: true,
-      },
-      orderBy: {
-        email: "asc",
-      },
-    }),
-  ]);
+  let profile;
+  let statements;
+  let recipients;
+
+  try {
+    [profile, statements, recipients] = await Promise.all([
+      prisma.financialProfile.findUnique({
+        where: { companyId: user.companyId },
+      }),
+      prisma.financialStatement.findMany({
+        where: {
+          companyId: user.companyId,
+        },
+        include: {
+          documents: true,
+        },
+        orderBy: {
+          referenceMonth: "desc",
+        },
+        take: 12,
+      }),
+      prisma.companyNotificationRecipient.findMany({
+        where: {
+          companyId: user.companyId,
+          type: "BILLING",
+          active: true,
+        },
+        orderBy: {
+          email: "asc",
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial page schema is out of date.", error);
+
+      return (
+        <main className="supportShell">
+          <section className="supportHeader">
+            <div>
+              <BrandHomeLink />
+              <span className="eyebrow">Financeiro</span>
+              <h1>Modulo financeiro em atualizacao</h1>
+              <p>
+                O banco de dados de producao ainda nao recebeu todas as tabelas ou colunas desta area.
+              </p>
+            </div>
+          </section>
+
+          <section className="supportPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Acao necessaria</span>
+                <h2>Sincronizar o schema do Prisma</h2>
+              </div>
+            </div>
+            <p className="helperText">
+              Rode o deploy do schema antes de abrir o Financeiro novamente. O app foi mantido no ar para
+              evitar erro 500 enquanto essa sincronizacao pendente nao for aplicada.
+            </p>
+          </section>
+        </main>
+      );
+    }
+
+    throw error;
+  }
 
   const referenceDate = toDateValue();
   const { start, end } = getFinancialCycleBounds({
@@ -66,48 +107,63 @@ export default async function FinancialPage() {
     contractStartDate: profile?.contractStartDate,
   });
 
-  const [monthEntries, monthVisits, legacyOnSiteEntries] = await Promise.all([
-    prisma.timeEntry.findMany({
-      where: {
-        companyId: user.companyId,
-        startedAt: {
-          gte: start,
-          lt: end,
+  let monthEntries: Array<{ durationMinutes: number }> = [];
+  let monthVisits: Array<{ amount: unknown }> = [];
+  let legacyOnSiteEntries: Array<{ id: string }> = [];
+
+  try {
+    [monthEntries, monthVisits, legacyOnSiteEntries] = await Promise.all([
+      prisma.timeEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          startedAt: {
+            gte: start,
+            lt: end,
+          },
         },
-      },
-      select: {
-        durationMinutes: true,
-      },
-    }),
-    prisma.visitEntry.findMany({
-      where: {
-        companyId: user.companyId,
-        visitDate: {
-          gte: start,
-          lt: end,
+        select: {
+          durationMinutes: true,
         },
-      },
-      select: {
-        amount: true,
-      },
-    }),
-    prisma.timeEntry.findMany({
-      where: {
-        companyId: user.companyId,
-        entryType: TimeEntryType.ON_SITE,
-        startedAt: {
-          gte: start,
-          lt: end,
+      }),
+      prisma.visitEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          visitDate: {
+            gte: start,
+            lt: end,
+          },
         },
-        visitEntry: {
-          is: null,
+        select: {
+          amount: true,
         },
-      },
-      select: {
-        id: true,
-      },
-    }),
-  ]);
+      }),
+      prisma.timeEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          entryType: TimeEntryType.ON_SITE,
+          startedAt: {
+            gte: start,
+            lt: end,
+          },
+          visitEntry: {
+            is: null,
+          },
+        },
+        select: {
+          id: true,
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial page metrics are unavailable because the schema is out of date.", error);
+      monthEntries = [];
+      monthVisits = [];
+      legacyOnSiteEntries = [];
+    } else {
+      throw error;
+    }
+  }
 
   const currentHours = monthEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
   const currentVisits = monthVisits.length + legacyOnSiteEntries.length;
