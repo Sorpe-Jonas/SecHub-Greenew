@@ -2,15 +2,13 @@
   "name": "sechub-greenew",
   "version": "0.1.0",
   "private": true,
-  "prisma": {
-    "seed": "node prisma/seed.mjs"
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npm run db:prepare && next start",
+    "start": "npm run db:prepare:start && next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "db:prepare:start": "prisma validate && prisma generate",
     "db:prepare": "prisma validate && prisma generate && prisma db push",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
