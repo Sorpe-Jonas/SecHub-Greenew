@@ -26,6 +26,7 @@ import {
   sendMail,
 } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { isMissingSchemaError } from "@/lib/prisma-errors";
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
 import { deleteStorageFile, uploadStorageFile } from "@/lib/storage";
 
@@ -146,30 +147,59 @@ export async function saveFinancialProfileAction(
     return { error: "Preencha todos os parametros financeiros." };
   }
 
-  await prisma.financialProfile.upsert({
-    where: {
-      companyId: user.companyId,
-    },
-    update: {
-      includedHours,
-      hourlyRate,
-      extraHourlyRate,
-      extraHalfHourRate,
-      visitRate,
-      billingDay,
-      contractStartDate,
-    },
-    create: {
-      companyId: user.companyId,
-      includedHours,
-      hourlyRate,
-      extraHourlyRate,
-      extraHalfHourRate,
-      visitRate,
-      billingDay,
-      contractStartDate,
-    },
-  });
+  try {
+    await prisma.financialProfile.upsert({
+      where: {
+        companyId: user.companyId,
+      },
+      update: {
+        includedHours,
+        hourlyRate,
+        extraHourlyRate,
+        extraHalfHourRate,
+        visitRate,
+        billingDay,
+        contractStartDate,
+      },
+      create: {
+        companyId: user.companyId,
+        includedHours,
+        hourlyRate,
+        extraHourlyRate,
+        extraHalfHourRate,
+        visitRate,
+        billingDay,
+        contractStartDate,
+      },
+    });
+  } catch (error) {
+    if (!isMissingSchemaError(error)) {
+      throw error;
+    }
+
+    await prisma.financialProfile.upsert({
+      where: {
+        companyId: user.companyId,
+      },
+      update: {
+        includedHours,
+        hourlyRate,
+        extraHourlyRate,
+        extraHalfHourRate,
+        visitRate,
+        billingDay,
+      },
+      create: {
+        companyId: user.companyId,
+        includedHours,
+        hourlyRate,
+        extraHourlyRate,
+        extraHalfHourRate,
+        visitRate,
+        billingDay,
+      },
+    });
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -200,6 +230,15 @@ export async function generateFinancialStatementAction(
   const referenceDate = parseDate(getValue(formData, "referenceDate"));
   const profile = await prisma.financialProfile.findUnique({
     where: { companyId: user.companyId },
+    select: {
+      id: true,
+      includedHours: true,
+      hourlyRate: true,
+      extraHourlyRate: true,
+      extraHalfHourRate: true,
+      visitRate: true,
+      billingDay: true,
+    },
   });
 
   if (!profile || !referenceDate) {
@@ -208,7 +247,7 @@ export async function generateFinancialStatementAction(
 
   const { start, end } = getFinancialCycleBounds({
     anchorDate: referenceDate,
-    contractStartDate: profile.contractStartDate,
+    contractStartDate: null,
   });
 
   const [timeEntries, visitEntries, legacyOnSiteEntries] = await Promise.all([

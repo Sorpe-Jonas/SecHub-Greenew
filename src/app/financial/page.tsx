@@ -41,6 +41,15 @@ export default async function FinancialPage() {
     [profile, statements, recipients] = await Promise.all([
       prisma.financialProfile.findUnique({
         where: { companyId: user.companyId },
+        select: {
+          id: true,
+          includedHours: true,
+          hourlyRate: true,
+          extraHourlyRate: true,
+          extraHalfHourRate: true,
+          visitRate: true,
+          billingDay: true,
+        },
       }),
       prisma.financialStatement.findMany({
         where: {
@@ -104,7 +113,7 @@ export default async function FinancialPage() {
   const referenceDate = toDateValue();
   const { start, end } = getFinancialCycleBounds({
     anchorDate: new Date(referenceDate),
-    contractStartDate: profile?.contractStartDate,
+    contractStartDate: null,
   });
 
   let monthEntries: Array<{ durationMinutes: number }> = [];
@@ -239,7 +248,7 @@ export default async function FinancialPage() {
                     extraHalfHourRate: profile.extraHalfHourRate?.toString() || "",
                     visitRate: profile.visitRate.toString(),
                     billingDay: profile.billingDay,
-                    contractStartDate: profile.contractStartDate?.toISOString().slice(0, 10) || "",
+                    contractStartDate: "",
                   }
                 : null
             }
