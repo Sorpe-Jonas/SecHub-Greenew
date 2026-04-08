@@ -35,6 +35,9 @@ export type FinancialFormState = {
   success?: string;
 };
 
+const FINANCIAL_SCHEMA_ERROR_MESSAGE =
+  "O schema do financeiro ainda nao foi aplicado no banco de dados. Rode o deploy do schema e tente novamente.";
+
 function getValue(formData: FormData, key: string) {
   return formData.get(key)?.toString().trim() ?? "";
 }
@@ -51,6 +54,10 @@ function parseDate(value: string) {
 
   const parsed = new Date(`${value}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildFinancialSchemaErrorState(): FinancialFormState {
+  return { error: FINANCIAL_SCHEMA_ERROR_MESSAGE };
 }
 
 async function requireFinancialUser() {
@@ -123,98 +130,107 @@ export async function saveFinancialProfileAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
-
-  if (user.role !== UserRole.SUPER_ADMIN) {
-    return { error: "Somente o Admin Total pode editar parametros financeiros." };
-  }
-
-  const includedHours = parseNumber(getValue(formData, "includedHours"));
-  const hourlyRate = parseNumber(getValue(formData, "hourlyRate"));
-  const extraHourlyRate = parseNumber(getValue(formData, "extraHourlyRate"));
-  const extraHalfHourRate = parseNumber(getValue(formData, "extraHalfHourRate"));
-  const visitRate = parseNumber(getValue(formData, "visitRate"));
-  const billingDay = Number(getValue(formData, "billingDay"));
-  const contractStartDate = parseDate(getValue(formData, "contractStartDate"));
-
-  if (
-    includedHours === null ||
-    hourlyRate === null ||
-    extraHourlyRate === null ||
-    visitRate === null ||
-    !billingDay
-  ) {
-    return { error: "Preencha todos os parametros financeiros." };
-  }
-
   try {
-    await prisma.financialProfile.upsert({
-      where: {
-        companyId: user.companyId,
-      },
-      update: {
-        includedHours,
-        hourlyRate,
-        extraHourlyRate,
-        extraHalfHourRate,
-        visitRate,
-        billingDay,
-        contractStartDate,
-      },
-      create: {
-        companyId: user.companyId,
-        includedHours,
-        hourlyRate,
-        extraHourlyRate,
-        extraHalfHourRate,
-        visitRate,
-        billingDay,
-        contractStartDate,
-      },
-    });
-  } catch (error) {
-    if (!isMissingSchemaError(error)) {
-      throw error;
+    const user = await requireFinancialUser();
+
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      return { error: "Somente o Admin Total pode editar parametros financeiros." };
     }
 
-    await prisma.financialProfile.upsert({
-      where: {
+    const includedHours = parseNumber(getValue(formData, "includedHours"));
+    const hourlyRate = parseNumber(getValue(formData, "hourlyRate"));
+    const extraHourlyRate = parseNumber(getValue(formData, "extraHourlyRate"));
+    const extraHalfHourRate = parseNumber(getValue(formData, "extraHalfHourRate"));
+    const visitRate = parseNumber(getValue(formData, "visitRate"));
+    const billingDay = Number(getValue(formData, "billingDay"));
+    const contractStartDate = parseDate(getValue(formData, "contractStartDate"));
+
+    if (
+      includedHours === null ||
+      hourlyRate === null ||
+      extraHourlyRate === null ||
+      visitRate === null ||
+      !billingDay
+    ) {
+      return { error: "Preencha todos os parametros financeiros." };
+    }
+
+    try {
+      await prisma.financialProfile.upsert({
+        where: {
+          companyId: user.companyId,
+        },
+        update: {
+          includedHours,
+          hourlyRate,
+          extraHourlyRate,
+          extraHalfHourRate,
+          visitRate,
+          billingDay,
+          contractStartDate,
+        },
+        create: {
+          companyId: user.companyId,
+          includedHours,
+          hourlyRate,
+          extraHourlyRate,
+          extraHalfHourRate,
+          visitRate,
+          billingDay,
+          contractStartDate,
+        },
+      });
+    } catch (error) {
+      if (!isMissingSchemaError(error)) {
+        throw error;
+      }
+
+      await prisma.financialProfile.upsert({
+        where: {
+          companyId: user.companyId,
+        },
+        update: {
+          includedHours,
+          hourlyRate,
+          extraHourlyRate,
+          extraHalfHourRate,
+          visitRate,
+          billingDay,
+        },
+        create: {
+          companyId: user.companyId,
+          includedHours,
+          hourlyRate,
+          extraHourlyRate,
+          extraHalfHourRate,
+          visitRate,
+          billingDay,
+        },
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: {
         companyId: user.companyId,
-      },
-      update: {
-        includedHours,
-        hourlyRate,
-        extraHourlyRate,
-        extraHalfHourRate,
-        visitRate,
-        billingDay,
-      },
-      create: {
-        companyId: user.companyId,
-        includedHours,
-        hourlyRate,
-        extraHourlyRate,
-        extraHalfHourRate,
-        visitRate,
-        billingDay,
+        userId: user.id,
+        module: AuditModule.FINANCIAL,
+        action: "financial_profile_saved",
+        entityType: "financial_profile",
+        description: "Perfil financeiro salvo ou atualizado.",
       },
     });
+
+    revalidatePath("/financial");
+    revalidatePath("/financial/rules");
+    return { success: "Perfil financeiro atualizado." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial profile save skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
   }
-
-  await prisma.auditLog.create({
-    data: {
-      companyId: user.companyId,
-      userId: user.id,
-      module: AuditModule.FINANCIAL,
-      action: "financial_profile_saved",
-      entityType: "financial_profile",
-      description: "Perfil financeiro salvo ou atualizado.",
-    },
-  });
-
-  revalidatePath("/financial");
-  revalidatePath("/financial/rules");
-  return { success: "Perfil financeiro atualizado." };
 }
 
 export async function generateFinancialStatementAction(
@@ -380,9 +396,7 @@ export async function generateFinancialStatementAction(
   } catch (error) {
     if (isMissingSchemaError(error)) {
       console.error("Financial statement generation skipped because the schema is out of date.", error);
-      return {
-        error: "O schema do financeiro ainda nao foi aplicado no banco de dados. Rode o deploy do schema e tente novamente.",
-      };
+      return buildFinancialSchemaErrorState();
     }
 
     throw error;
@@ -393,7 +407,8 @@ export async function addFinancialDocumentAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   const statementId = getValue(formData, "statementId");
   const fileNameInput = getValue(formData, "fileName");
@@ -466,16 +481,25 @@ export async function addFinancialDocumentAction(
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  return { success: "Documento financeiro anexado." };
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    return { success: "Documento financeiro anexado." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial document creation skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
 
 export async function updateFinancialDocumentAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return { error: "Somente o Admin Total pode editar documentos." };
@@ -551,13 +575,22 @@ export async function updateFinancialDocumentAction(
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  return { success: "Documento financeiro atualizado." };
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    return { success: "Documento financeiro atualizado." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial document update skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
 
 export async function deleteFinancialDocumentAction(formData: FormData) {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return;
@@ -600,17 +633,26 @@ export async function deleteFinancialDocumentAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  redirect("/financial/documents");
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    redirect("/financial/documents");
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial document deletion skipped because the schema is out of date.", error);
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export async function addFinancialRecipientAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
-  const email = getValue(formData, "email").toLowerCase();
+  try {
+    const user = await requireFinancialUser();
+    const email = getValue(formData, "email").toLowerCase();
 
   if (!email) {
     return { error: "Informe o email financeiro." };
@@ -656,16 +698,25 @@ export async function addFinancialRecipientAction(
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/rules");
-  return { success: "Destinatario financeiro salvo." };
+    revalidatePath("/financial");
+    revalidatePath("/financial/rules");
+    return { success: "Destinatario financeiro salvo." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial recipient save skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
 
 export async function updateFinancialDocumentStatusAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return { error: "Somente o Admin Total pode alterar documentos." };
@@ -714,14 +765,23 @@ export async function updateFinancialDocumentStatusAction(
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  return { success: "Documento atualizado." };
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    return { success: "Documento atualizado." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial document status update skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
 
 export async function sendFinancialReminderAction(formData: FormData) {
-  const user = await requireFinancialUser();
-  const statementId = getValue(formData, "statementId");
+  try {
+    const user = await requireFinancialUser();
+    const statementId = getValue(formData, "statementId");
 
   if (!statementId) {
     return;
@@ -840,14 +900,23 @@ export async function sendFinancialReminderAction(formData: FormData) {
     });
   }
 
-  revalidatePath("/financial");
+    revalidatePath("/financial");
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial reminder send skipped because the schema is out of date.", error);
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export async function saveFinancialReminderRuleAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return { error: "Somente o Admin Total pode editar regras de cobranca." };
@@ -914,12 +983,21 @@ export async function saveFinancialReminderRuleAction(
     },
   });
 
-  revalidatePath("/financial/rules");
-  return { success: "Regra de cobranca salva." };
+    revalidatePath("/financial/rules");
+    return { success: "Regra de cobranca salva." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial reminder rule save skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
 
 export async function deleteFinancialReminderRuleAction(formData: FormData) {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return;
@@ -954,14 +1032,23 @@ export async function deleteFinancialReminderRuleAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/financial/rules");
+    revalidatePath("/financial/rules");
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial reminder rule deletion skipped because the schema is out of date.", error);
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export async function updateFinancialStatementStatusAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
   if (user.role !== UserRole.SUPER_ADMIN) {
     return { error: "Somente o Admin Total pode alterar o status." };
@@ -1018,7 +1105,15 @@ export async function updateFinancialStatementStatusAction(
     },
   });
 
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  return { success: "Status do fechamento atualizado." };
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    return { success: "Status do fechamento atualizado." };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial statement status update skipped because the schema is out of date.", error);
+      return buildFinancialSchemaErrorState();
+    }
+
+    throw error;
+  }
 }
