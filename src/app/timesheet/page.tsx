@@ -8,8 +8,11 @@ import { TimeEntryForm } from "@/components/timesheet/time-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
-function toHours(minutes: number) {
-  return (minutes / 60).toFixed(2);
+function formatDuration(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return `${hours}h${remainingMinutes.toString().padStart(2, "0")}min`;
 }
 
 export default async function TimesheetPage() {
@@ -82,7 +85,7 @@ export default async function TimesheetPage() {
       <section className="statsGrid">
         <article className="statCard">
           <strong>Total recente</strong>
-          <h2>{toHours(totalMinutes)}h</h2>
+          <h2>{formatDuration(totalMinutes)}</h2>
           <span>Somatorio dos ultimos 20 lancamentos</span>
         </article>
         <article className="statCard">
@@ -141,7 +144,7 @@ export default async function TimesheetPage() {
                   </span>
                 </div>
                 <div>
-                  <strong>{toHours(entry.durationMinutes)}h</strong>
+                  <strong>{formatDuration(entry.durationMinutes)}</strong>
                   <span>{entry.isManualEdit ? "Editavel" : "Gerado por timer"}</span>
                 </div>
               </Link>
