@@ -1,5 +1,9 @@
 "use server";
 
+import { execFile } from "node:child_process";
+import path from "node:path";
+import { promisify } from "node:util";
+
 import {
   AuditModule,
   FinancialDocumentType,
@@ -37,6 +41,7 @@ export type FinancialFormState = {
 
 const FINANCIAL_SCHEMA_ERROR_MESSAGE =
   "O schema do financeiro ainda nao foi aplicado no banco de dados. Rode o deploy do schema e tente novamente.";
+const execFileAsync = promisify(execFile);
 
 function getValue(formData: FormData, key: string) {
   return formData.get(key)?.toString().trim() ?? "";
@@ -58,6 +63,22 @@ function parseDate(value: string) {
 
 function buildFinancialSchemaErrorState(): FinancialFormState {
   return { error: FINANCIAL_SCHEMA_ERROR_MESSAGE };
+}
+
+function getPrismaCliCandidates() {
+  const cwd = process.cwd();
+  const isWindows = process.platform === "win32";
+
+  return [
+    {
+      command: path.join(cwd, "node_modules", ".bin", isWindows ? "prisma.cmd" : "prisma"),
+      args: ["db", "push", "--skip-generate"],
+    },
+    {
+      command: process.execPath,
+      args: [path.join(cwd, "node_modules", "prisma", "build", "index.js"), "db", "push", "--skip-generate"],
+    },
+  ];
 }
 
 async function requireFinancialUser() {
@@ -1116,4 +1137,36 @@ export async function updateFinancialStatementStatusAction(
 
     throw error;
   }
+}
+
+export async function syncFinancialSchemaAction(): Promise<FinancialFormState> {
+  const user = await requireFinancialUser();
+
+  if (user.role !== UserRole.SUPER_ADMIN) {
+    return { error: "Somente o Admin Total pode sincronizar o schema." };
+  }
+
+  let lastError: unknown = null;
+
+  for (const candidate of getPrismaCliCandidates()) {
+    try {
+      await execFileAsync(candidate.command, candidate.args, {
+        cwd: process.cwd(),
+        env: process.env,
+      });
+
+      revalidatePath("/financial");
+      revalidatePath("/financial/documents");
+      revalidatePath("/financial/rules");
+      return { success: "Schema do Prisma sincronizado com sucesso." };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  console.error("Failed to sync Prisma schema from the financial page.", lastError);
+  return {
+    error:
+      "Nao foi possivel executar a sincronizacao automatica do schema neste ambiente. Verifique se o Prisma CLI esta disponivel no servidor.",
+  };
 }

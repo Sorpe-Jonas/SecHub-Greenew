@@ -9,6 +9,7 @@ import { FinancialGenerateForm } from "@/components/financial/financial-generate
 import { FinancialProfileForm } from "@/components/financial/financial-profile-form";
 import { FinancialRecipientList } from "@/components/financial/financial-recipient-list";
 import { FinancialRecipientForm } from "@/components/financial/financial-recipient-form";
+import { FinancialSchemaSyncForm } from "@/components/financial/financial-schema-sync-form";
 import { FinancialStatementStatusForm } from "@/components/financial/financial-statement-status-form";
 import { requireCurrentUser } from "@/lib/authz";
 import {
@@ -103,6 +104,7 @@ export default async function FinancialPage() {
               Rode o deploy do schema antes de abrir o Financeiro novamente. O app foi mantido no ar para
               evitar erro 500 enquanto essa sincronizacao pendente nao for aplicada.
             </p>
+            {user.role === UserRole.SUPER_ADMIN ? <FinancialSchemaSyncForm /> : null}
           </section>
         </main>
       );
