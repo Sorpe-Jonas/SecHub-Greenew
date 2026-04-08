@@ -15,7 +15,10 @@ RUN npm ci
 COPY . .
 
 RUN npm run build
+RUN mkdir -p .next/standalone/.next/static
+RUN cp -R .next/static/. .next/standalone/.next/static
+RUN cp -R public .next/standalone/public
 
 EXPOSE 3000
 
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", "/src/.next/standalone/server.js"]
