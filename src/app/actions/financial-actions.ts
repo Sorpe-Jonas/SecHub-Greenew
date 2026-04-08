@@ -221,16 +221,17 @@ export async function generateFinancialStatementAction(
   _prevState: FinancialFormState,
   formData: FormData,
 ): Promise<FinancialFormState> {
-  const user = await requireFinancialUser();
+  try {
+    const user = await requireFinancialUser();
 
-  if (user.role !== UserRole.SUPER_ADMIN) {
-    return { error: "Somente o Admin Total pode gerar fechamentos." };
-  }
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      return { error: "Somente o Admin Total pode gerar fechamentos." };
+    }
 
-  const referenceDate = parseDate(getValue(formData, "referenceDate"));
-  const profile = await prisma.financialProfile.findUnique({
-    where: { companyId: user.companyId },
-    select: {
+    const referenceDate = parseDate(getValue(formData, "referenceDate"));
+    const profile = await prisma.financialProfile.findUnique({
+      where: { companyId: user.companyId },
+      select: {
       id: true,
       includedHours: true,
       hourlyRate: true,
@@ -238,142 +239,154 @@ export async function generateFinancialStatementAction(
       extraHalfHourRate: true,
       visitRate: true,
       billingDay: true,
+      contractStartDate: true,
     },
   });
 
-  if (!profile || !referenceDate) {
-    return { error: "Perfil financeiro ou data de referencia invalida." };
-  }
+    if (!profile || !referenceDate) {
+      return { error: "Perfil financeiro ou data de referencia invalida." };
+    }
 
-  const { start, end } = getFinancialCycleBounds({
-    anchorDate: referenceDate,
-    contractStartDate: null,
-  });
+    const { start, end } = getFinancialCycleBounds({
+      anchorDate: referenceDate,
+      billingDay: profile.billingDay,
+      contractStartDate: profile.contractStartDate ?? null,
+    });
 
-  const [timeEntries, visitEntries, legacyOnSiteEntries] = await Promise.all([
-    prisma.timeEntry.findMany({
+    const [timeEntries, visitEntries, legacyOnSiteEntries] = await Promise.all([
+      prisma.timeEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          startedAt: {
+            gte: start,
+            lt: end,
+          },
+        },
+        select: {
+          durationMinutes: true,
+        },
+      }),
+      prisma.visitEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          visitDate: {
+            gte: start,
+            lt: end,
+          },
+        },
+        select: {
+          amount: true,
+        },
+      }),
+      prisma.timeEntry.findMany({
+        where: {
+          companyId: user.companyId,
+          entryType: TimeEntryType.ON_SITE,
+          startedAt: {
+            gte: start,
+            lt: end,
+          },
+          visitEntry: {
+            is: null,
+          },
+        },
+        select: {
+          id: true,
+        },
+      }),
+    ]);
+
+    const totalHours = timeEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
+    const includedHours = Number(profile.includedHours);
+    const baseFee = Number(profile.hourlyRate);
+    const visitRate = Number(profile.visitRate);
+    const visitCount = visitEntries.length + legacyOnSiteEntries.length;
+    const includedHoursUsed = Math.min(totalHours, includedHours);
+    const extraHoursUsed = Math.max(totalHours - includedHours, 0);
+    const extraCharge = calculateExtraCharge(extraHoursUsed, profile);
+    const visitsTotal = visitCount > 0 ? visitCount * visitRate : 0;
+    const total = baseFee + extraCharge.total + visitsTotal;
+
+    const existingStatement = await prisma.financialStatement.findFirst({
       where: {
         companyId: user.companyId,
-        startedAt: {
-          gte: start,
-          lt: end,
-        },
-      },
-      select: {
-        durationMinutes: true,
-      },
-    }),
-    prisma.visitEntry.findMany({
-      where: {
-        companyId: user.companyId,
-        visitDate: {
-          gte: start,
-          lt: end,
-        },
-      },
-      select: {
-        amount: true,
-      },
-    }),
-    prisma.timeEntry.findMany({
-      where: {
-        companyId: user.companyId,
-        entryType: TimeEntryType.ON_SITE,
-        startedAt: {
-          gte: start,
-          lt: end,
-        },
-        visitEntry: {
-          is: null,
-        },
+        referenceMonth: start,
       },
       select: {
         id: true,
       },
-    }),
-  ]);
-
-  const totalHours = timeEntries.reduce((sum, entry) => sum + entry.durationMinutes / 60, 0);
-  const includedHours = Number(profile.includedHours);
-  const baseFee = Number(profile.hourlyRate);
-  const visitRate = Number(profile.visitRate);
-  const visitCount = visitEntries.length + legacyOnSiteEntries.length;
-  const includedHoursUsed = Math.min(totalHours, includedHours);
-  const extraHoursUsed = Math.max(totalHours - includedHours, 0);
-  const extraCharge = calculateExtraCharge(extraHoursUsed, profile);
-  const visitsTotal = visitCount > 0 ? visitCount * visitRate : 0;
-  const total = baseFee + extraCharge.total + visitsTotal;
-
-  const existingStatement = await prisma.financialStatement.findFirst({
-    where: {
-      companyId: user.companyId,
-      referenceMonth: start,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (existingStatement) {
-    await prisma.financialStatement.update({
-      where: { id: existingStatement.id },
-      data: {
-        financialProfileId: profile.id,
-        includedHoursUsed,
-        extraHoursUsed,
-        visitCount,
-        subtotal: baseFee,
-        total,
-        status: FinancialStatementStatus.OPEN,
-      },
     });
-  } else {
-    await prisma.financialStatement.create({
+
+    if (existingStatement) {
+      await prisma.financialStatement.update({
+        where: { id: existingStatement.id },
+        data: {
+          financialProfileId: profile.id,
+          includedHoursUsed,
+          extraHoursUsed,
+          visitCount,
+          subtotal: baseFee,
+          total,
+          status: FinancialStatementStatus.OPEN,
+        },
+      });
+    } else {
+      await prisma.financialStatement.create({
+        data: {
+          companyId: user.companyId,
+          financialProfileId: profile.id,
+          referenceMonth: start,
+          includedHoursUsed,
+          extraHoursUsed,
+          visitCount,
+          subtotal: baseFee,
+          total,
+          status: FinancialStatementStatus.OPEN,
+        },
+      });
+    }
+
+    await prisma.auditLog.create({
       data: {
         companyId: user.companyId,
-        financialProfileId: profile.id,
-        referenceMonth: start,
-        includedHoursUsed,
-        extraHoursUsed,
-        visitCount,
-        subtotal: baseFee,
-        total,
-        status: FinancialStatementStatus.OPEN,
+        userId: user.id,
+        module: AuditModule.FINANCIAL,
+        action: "financial_statement_generated",
+        entityType: "financial_statement",
+        description: `Fechamento financeiro gerado para ${formatFinancialPeriodLabel(start, end)}.`,
       },
     });
+
+    const company = await prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: {
+        name: true,
+      },
+    });
+
+    await notifyFinancialStatementGenerated({
+      companyName: company?.name,
+      referenceMonth: formatFinancialPeriodLabel(start, end),
+      total,
+      extraHoursUsed,
+      visitCount,
+    }).catch((error) => {
+      console.error("Falha ao enviar notificacao Telegram do fechamento financeiro:", error);
+    });
+
+    revalidatePath("/financial");
+    revalidatePath("/financial/documents");
+    return { success: `Fechamento de ${formatFinancialPeriodLabel(start, end)} gerado/atualizado com sucesso.` };
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error("Financial statement generation skipped because the schema is out of date.", error);
+      return {
+        error: "O schema do financeiro ainda nao foi aplicado no banco de dados. Rode o deploy do schema e tente novamente.",
+      };
+    }
+
+    throw error;
   }
-
-  await prisma.auditLog.create({
-    data: {
-      companyId: user.companyId,
-      userId: user.id,
-      module: AuditModule.FINANCIAL,
-      action: "financial_statement_generated",
-      entityType: "financial_statement",
-      description: `Fechamento financeiro gerado para ${formatFinancialPeriodLabel(start, end)}.`,
-    },
-  });
-
-  const company = await prisma.company.findUnique({
-    where: { id: user.companyId },
-    select: {
-      name: true,
-    },
-  });
-
-  await notifyFinancialStatementGenerated({
-    companyName: company?.name,
-    referenceMonth: formatFinancialPeriodLabel(start, end),
-    total,
-    extraHoursUsed,
-    visitCount,
-  }).catch((error) => {
-    console.error("Falha ao enviar notificacao Telegram do fechamento financeiro:", error);
-  });
-
-  revalidatePath("/financial");
-  revalidatePath("/financial/documents");
-  return { success: `Fechamento de ${formatFinancialPeriodLabel(start, end)} gerado/atualizado com sucesso.` };
 }
 
 export async function addFinancialDocumentAction(

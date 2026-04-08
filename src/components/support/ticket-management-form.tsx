@@ -55,6 +55,22 @@ export function TicketManagementForm(props: {
           ))}
         </select>
       </label>
+      <label>
+        Horas para lancar no TimeSheet
+        <input name="loggedHours" type="number" min="0" step="1" defaultValue="0" />
+      </label>
+      <label>
+        Minutos para lancar no TimeSheet
+        <input name="loggedMinutes" type="number" min="0" max="59" step="1" defaultValue="0" />
+      </label>
+      <label>
+        Descricao do lancamento
+        <input
+          name="timeEntryDescription"
+          type="text"
+          placeholder="Opcional. Se vazio, usa o titulo do ticket."
+        />
+      </label>
       {state.error ? <p className="errorText">{state.error}</p> : null}
       <SubmitButton idleLabel="Salvar ticket" pendingLabel="Salvando..." />
     </form>

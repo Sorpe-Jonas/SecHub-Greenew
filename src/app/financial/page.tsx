@@ -49,6 +49,7 @@ export default async function FinancialPage() {
           extraHalfHourRate: true,
           visitRate: true,
           billingDay: true,
+          contractStartDate: true,
         },
       }),
       prisma.financialStatement.findMany({
@@ -113,7 +114,9 @@ export default async function FinancialPage() {
   const referenceDate = toDateValue();
   const { start, end } = getFinancialCycleBounds({
     anchorDate: new Date(referenceDate),
-    contractStartDate: null,
+    billingDay: profile?.billingDay,
+    contractStartDate: profile?.contractStartDate ?? null,
+    clampEndToAnchorDate: true,
   });
 
   let monthEntries: Array<{ durationMinutes: number }> = [];
@@ -248,7 +251,9 @@ export default async function FinancialPage() {
                     extraHalfHourRate: profile.extraHalfHourRate?.toString() || "",
                     visitRate: profile.visitRate.toString(),
                     billingDay: profile.billingDay,
-                    contractStartDate: "",
+                    contractStartDate: profile.contractStartDate
+                      ? profile.contractStartDate.toISOString().slice(0, 10)
+                      : "",
                   }
                 : null
             }

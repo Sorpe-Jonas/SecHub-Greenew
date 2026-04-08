@@ -5,6 +5,7 @@ import {
   TicketCategory,
   TicketPriority,
   TicketStatus,
+  TimeEntryType,
   UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -28,6 +29,15 @@ export type TicketFormState = {
 
 function getValue(formData: FormData, key: string) {
   return formData.get(key)?.toString().trim() ?? "";
+}
+
+function parseInteger(value: string) {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function sanitizeFileName(value: string) {
@@ -242,12 +252,19 @@ export async function updateTicketManagementAction(
   const statusValue = getValue(formData, "status");
   const priorityValue = getValue(formData, "priority");
   const assignedToId = getValue(formData, "assignedToId");
+  const loggedHours = Math.max(0, parseInteger(getValue(formData, "loggedHours")));
+  const loggedMinutes = Math.max(0, parseInteger(getValue(formData, "loggedMinutes")));
+  const timeEntryDescription = getValue(formData, "timeEntryDescription");
 
   const status = Object.values(TicketStatus).find((item) => item === statusValue);
   const priority = Object.values(TicketPriority).find((item) => item === priorityValue);
 
   if (!ticketId || !status || !priority) {
     return { error: "Dados do ticket invalidos." };
+  }
+
+  if (loggedMinutes > 59) {
+    return { error: "Os minutos devem ficar entre 0 e 59." };
   }
 
   const ticket = await prisma.ticket.findUnique({
@@ -312,6 +329,39 @@ export async function updateTicketManagementAction(
       closedAt: status === TicketStatus.CLOSED ? new Date() : null,
     },
   });
+
+  const durationMinutes = loggedHours * 60 + loggedMinutes;
+
+  if (durationMinutes > 0) {
+    const endedAt = new Date();
+    const startedAt = new Date(endedAt.getTime() - durationMinutes * 60000);
+
+    await prisma.timeEntry.create({
+      data: {
+        companyId: ticket.companyId,
+        userId: user.id,
+        ticketId,
+        description: timeEntryDescription || `Atendimento do ticket: ${ticket.title}`,
+        entryType: TimeEntryType.SUPPORT,
+        startedAt,
+        endedAt,
+        durationMinutes,
+        isManualEdit: true,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: ticket.companyId,
+        userId: user.id,
+        module: AuditModule.TIMESHEET,
+        action: "time_entry_created_from_ticket",
+        entityType: "ticket",
+        entityId: ticketId,
+        description: `Lancamento de ${durationMinutes} minuto(s) criado a partir do ticket.`,
+      },
+    });
+  }
 
   await prisma.auditLog.create({
     data: {

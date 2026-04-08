@@ -42,21 +42,38 @@ export function getMonthBounds(referenceMonth: string) {
 
 export function getFinancialCycleBounds(params: {
   anchorDate: Date;
+  billingDay?: number | null;
   contractStartDate?: Date | null;
+  clampEndToAnchorDate?: boolean;
 }) {
+  const anchor = startOfDay(params.anchorDate);
+  const billingDay = Math.max(1, Math.min(31, params.billingDay ?? 1));
+
   if (!params.contractStartDate) {
-    const referenceMonth = `${params.anchorDate.getFullYear()}-${String(params.anchorDate.getMonth() + 1).padStart(2, "0")}`;
-    return getMonthBounds(referenceMonth);
+    const anchorDay = anchor.getDate();
+    const startMonthOffset = anchorDay >= billingDay ? 0 : -1;
+    const cycleStart = new Date(anchor.getFullYear(), anchor.getMonth() + startMonthOffset, 1);
+    const start = new Date(cycleStart.getFullYear(), cycleStart.getMonth(), billingDay);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, billingDay);
+
+    if (params.clampEndToAnchorDate && end.getTime() > anchor.getTime()) {
+      return { start, end: addDays(anchor, 1) };
+    }
+
+    return { start, end };
   }
 
   const cycleLengthDays = 30;
   const contractStart = startOfDay(params.contractStartDate);
-  const anchor = startOfDay(params.anchorDate);
   const elapsedMs = anchor.getTime() - contractStart.getTime();
   const elapsedDays = Math.floor(elapsedMs / 86400000);
   const cycleIndex = elapsedDays >= 0 ? Math.floor(elapsedDays / cycleLengthDays) : 0;
   const start = addDays(contractStart, cycleIndex * cycleLengthDays);
   const end = addDays(start, cycleLengthDays);
+
+  if (params.clampEndToAnchorDate && end.getTime() > anchor.getTime()) {
+    return { start, end: addDays(anchor, 1) };
+  }
 
   return { start, end };
 }
