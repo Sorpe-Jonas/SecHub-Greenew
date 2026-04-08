@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { isMissingSchemaError } from "@/lib/prisma-errors";
 
 export type TimeEntryFormState = {
   error?: string;
@@ -46,54 +47,66 @@ async function syncVisitEntryForTimeEntry(params: {
   entryType: TimeEntryType;
   startedAt: Date;
 }) {
-  const existingVisit = await prisma.visitEntry.findUnique({
-    where: {
-      timeEntryId: params.entryId,
-    },
-    select: {
-      id: true,
-    },
-  });
+  try {
+    const existingVisit = await prisma.visitEntry.findUnique({
+      where: {
+        timeEntryId: params.entryId,
+      },
+      select: {
+        id: true,
+      },
+    });
 
-  if (params.entryType !== TimeEntryType.ON_SITE) {
-    if (existingVisit) {
-      await prisma.visitEntry.delete({
-        where: { id: existingVisit.id },
-      });
+    if (params.entryType !== TimeEntryType.ON_SITE) {
+      if (existingVisit) {
+        await prisma.visitEntry.delete({
+          where: { id: existingVisit.id },
+        });
+      }
+      return;
     }
-    return;
-  }
 
-  const profile = await prisma.financialProfile.findUnique({
-    where: {
+    const profile = await prisma.financialProfile.findUnique({
+      where: {
+        companyId: params.companyId,
+      },
+      select: {
+        visitRate: true,
+      },
+    });
+
+    const visitData = {
       companyId: params.companyId,
-    },
-    select: {
-      visitRate: true,
-    },
-  });
+      userId: params.userId,
+      ticketId: params.ticketId,
+      timeEntryId: params.entryId,
+      visitDate: params.startedAt,
+      description: params.description,
+      amount: profile?.visitRate ?? 0,
+    };
 
-  const visitData = {
-    companyId: params.companyId,
-    userId: params.userId,
-    ticketId: params.ticketId,
-    timeEntryId: params.entryId,
-    visitDate: params.startedAt,
-    description: params.description,
-    amount: profile?.visitRate ?? 0,
-  };
+    if (existingVisit) {
+      await prisma.visitEntry.update({
+        where: { id: existingVisit.id },
+        data: visitData,
+      });
+      return;
+    }
 
-  if (existingVisit) {
-    await prisma.visitEntry.update({
-      where: { id: existingVisit.id },
+    await prisma.visitEntry.create({
       data: visitData,
     });
-    return;
-  }
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.error(
+        "VisitEntry sync skipped because the financial schema is out of date.",
+        error,
+      );
+      return;
+    }
 
-  await prisma.visitEntry.create({
-    data: visitData,
-  });
+    throw error;
+  }
 }
 
 export async function startTimerAction(formData: FormData) {
