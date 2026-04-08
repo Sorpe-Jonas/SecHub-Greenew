@@ -9,6 +9,7 @@ import {
   FinancialDocumentType,
   FinancialStatementStatus,
   NotificationRecipientType,
+  Prisma,
   TimeEntryType,
   UserRole,
 } from "@prisma/client";
@@ -79,6 +80,44 @@ function getPrismaCliCandidates() {
       args: [path.join(cwd, "node_modules", "prisma", "build", "index.js"), "db", "push", "--skip-generate"],
     },
   ];
+}
+
+async function dedupeVisitEntriesByTimeEntryId() {
+  const duplicates = await prisma.$queryRaw<Array<{ timeEntryId: string; ids: string[] }>>(Prisma.sql`
+    SELECT
+      "timeEntryId",
+      array_agg(id ORDER BY "createdAt" DESC, id DESC) AS ids
+    FROM "VisitEntry"
+    WHERE "timeEntryId" IS NOT NULL
+    GROUP BY "timeEntryId"
+    HAVING COUNT(*) > 1
+  `);
+
+  if (duplicates.length === 0) {
+    return 0;
+  }
+
+  let deletedCount = 0;
+
+  for (const duplicate of duplicates) {
+    const [, ...idsToDelete] = duplicate.ids;
+
+    if (idsToDelete.length === 0) {
+      continue;
+    }
+
+    const result = await prisma.visitEntry.deleteMany({
+      where: {
+        id: {
+          in: idsToDelete,
+        },
+      },
+    });
+
+    deletedCount += result.count;
+  }
+
+  return deletedCount;
 }
 
 async function requireFinancialUser() {
@@ -1147,6 +1186,7 @@ export async function syncFinancialSchemaAction(): Promise<FinancialFormState> {
   }
 
   let lastError: unknown = null;
+  let cleanedDuplicates = 0;
 
   for (const candidate of getPrismaCliCandidates()) {
     try {
@@ -1158,13 +1198,61 @@ export async function syncFinancialSchemaAction(): Promise<FinancialFormState> {
       revalidatePath("/financial");
       revalidatePath("/financial/documents");
       revalidatePath("/financial/rules");
-      return { success: "Schema do Prisma sincronizado com sucesso." };
+      return {
+        success:
+          cleanedDuplicates > 0
+            ? `Schema do Prisma sincronizado com sucesso. ${cleanedDuplicates} registro(s) duplicado(s) de visita foram removidos para concluir a operacao.`
+            : "Schema do Prisma sincronizado com sucesso.",
+      };
     } catch (error) {
       lastError = error;
+
+      const commandError =
+        typeof error === "object" && error !== null
+          ? (error as { stdout?: string; stderr?: string })
+          : null;
+      const combinedOutput = `${commandError?.stdout || ""}\n${commandError?.stderr || ""}`;
+
+      if (combinedOutput.includes("--accept-data-loss")) {
+        cleanedDuplicates = await dedupeVisitEntriesByTimeEntryId();
+
+        try {
+          await execFileAsync(candidate.command, [...candidate.args, "--accept-data-loss"], {
+            cwd: process.cwd(),
+            env: process.env,
+          });
+
+          revalidatePath("/financial");
+          revalidatePath("/financial/documents");
+          revalidatePath("/financial/rules");
+          return {
+            success:
+              cleanedDuplicates > 0
+                ? `Schema do Prisma sincronizado com sucesso. ${cleanedDuplicates} registro(s) duplicado(s) de visita foram removidos automaticamente.`
+                : "Schema do Prisma sincronizado com sucesso.",
+          };
+        } catch (retryError) {
+          lastError = retryError;
+        }
+      }
     }
   }
 
   console.error("Failed to sync Prisma schema from the financial page.", lastError);
+
+  const commandError =
+    typeof lastError === "object" && lastError !== null
+      ? (lastError as { stdout?: string; stderr?: string })
+      : null;
+  const combinedOutput = `${commandError?.stdout || ""}\n${commandError?.stderr || ""}`;
+
+  if (combinedOutput.includes("--accept-data-loss")) {
+    return {
+      error:
+        "A sincronizacao ainda foi bloqueada pelo Prisma mesmo apos a tentativa de limpeza automatica. Verifique manualmente os dados da tabela VisitEntry e tente novamente.",
+    };
+  }
+
   return {
     error:
       "Nao foi possivel executar a sincronizacao automatica do schema neste ambiente. Verifique se o Prisma CLI esta disponivel no servidor.",
