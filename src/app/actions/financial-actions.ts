@@ -70,7 +70,7 @@ function buildFinancialSchemaErrorState(): FinancialFormState {
 function getPrismaCliCandidates() {
   const searchRoots = [process.cwd(), path.resolve(process.cwd(), ".."), path.resolve(process.cwd(), "..", "..")];
   const isWindows = process.platform === "win32";
-  const candidates: Array<{ command: string; args: string[]; env?: NodeJS.ProcessEnv }> = [];
+  const candidates: Array<{ command: string; args: string[]; env?: Partial<NodeJS.ProcessEnv> }> = [];
 
   for (const root of searchRoots) {
     const prismaSchema = path.join(root, "prisma", "schema.prisma");
