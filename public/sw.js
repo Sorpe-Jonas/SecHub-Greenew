@@ -1,5 +1,5 @@
 const CACHE_NAME = "sechub-v3";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+const APP_SHELL = ["/manifest.webmanifest", "/icon.svg"];
 const ACTIVE_TIMER_TAG = "sechub-active-timer";
 
 self.addEventListener("install", (event) => {

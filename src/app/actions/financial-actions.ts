@@ -70,14 +70,20 @@ function buildFinancialSchemaErrorState(): FinancialFormState {
 function getPrismaCliCandidates() {
   const searchRoots = [process.cwd(), path.resolve(process.cwd(), ".."), path.resolve(process.cwd(), "..", "..")];
   const isWindows = process.platform === "win32";
-  const candidates: Array<{ command: string; args: string[] }> = [];
+  const candidates: Array<{ command: string; args: string[]; env?: NodeJS.ProcessEnv }> = [];
 
   for (const root of searchRoots) {
+    const prismaSchema = path.join(root, "prisma", "schema.prisma");
+    const prismaConfig = path.join(root, "prisma.config.ts");
+    const schemaArgs = fs.existsSync(prismaSchema) ? ["--schema", prismaSchema] : [];
+    const configEnv = fs.existsSync(prismaConfig) ? { PRISMA_CONFIG_FILE: prismaConfig } : {};
+
     const prismaBin = path.join(root, "node_modules", ".bin", isWindows ? "prisma.cmd" : "prisma");
     if (fs.existsSync(prismaBin)) {
       candidates.push({
         command: prismaBin,
-        args: ["db", "push", "--skip-generate"],
+        args: ["db", "push", "--skip-generate", ...schemaArgs],
+        env: configEnv,
       });
     }
 
@@ -86,7 +92,8 @@ function getPrismaCliCandidates() {
     if (fs.existsSync(prismaBuild) && fs.existsSync(prismaWasm)) {
       candidates.push({
         command: process.execPath,
-        args: [prismaBuild, "db", "push", "--skip-generate"],
+        args: [prismaBuild, "db", "push", "--skip-generate", ...schemaArgs],
+        env: configEnv,
       });
     }
   }
@@ -1204,7 +1211,10 @@ export async function syncFinancialSchemaAction(): Promise<FinancialFormState> {
     try {
       await execFileAsync(candidate.command, candidate.args, {
         cwd: process.cwd(),
-        env: process.env,
+        env: {
+          ...process.env,
+          ...candidate.env,
+        },
       });
 
       revalidatePath("/financial");
@@ -1231,7 +1241,10 @@ export async function syncFinancialSchemaAction(): Promise<FinancialFormState> {
         try {
           await execFileAsync(candidate.command, [...candidate.args, "--accept-data-loss"], {
             cwd: process.cwd(),
-            env: process.env,
+            env: {
+              ...process.env,
+              ...candidate.env,
+            },
           });
 
           revalidatePath("/financial");
