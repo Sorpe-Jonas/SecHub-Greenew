@@ -102,6 +102,20 @@ function getPrismaCliCandidates() {
 }
 
 async function dedupeVisitEntriesByTimeEntryId() {
+  const [timeEntryIdColumn] = await prisma.$queryRaw<Array<{ exists: boolean }>>(Prisma.sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'VisitEntry'
+        AND column_name = 'timeEntryId'
+    ) AS "exists"
+  `);
+
+  if (!timeEntryIdColumn?.exists) {
+    return 0;
+  }
+
   const duplicates = await prisma.$queryRaw<Array<{ timeEntryId: string; ids: string[] }>>(Prisma.sql`
     SELECT
       "timeEntryId",
