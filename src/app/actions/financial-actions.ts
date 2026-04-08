@@ -1,6 +1,7 @@
 "use server";
 
 import { execFile } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -67,19 +68,30 @@ function buildFinancialSchemaErrorState(): FinancialFormState {
 }
 
 function getPrismaCliCandidates() {
-  const cwd = process.cwd();
+  const searchRoots = [process.cwd(), path.resolve(process.cwd(), ".."), path.resolve(process.cwd(), "..", "..")];
   const isWindows = process.platform === "win32";
+  const candidates: Array<{ command: string; args: string[] }> = [];
 
-  return [
-    {
-      command: path.join(cwd, "node_modules", ".bin", isWindows ? "prisma.cmd" : "prisma"),
-      args: ["db", "push", "--skip-generate"],
-    },
-    {
-      command: process.execPath,
-      args: [path.join(cwd, "node_modules", "prisma", "build", "index.js"), "db", "push", "--skip-generate"],
-    },
-  ];
+  for (const root of searchRoots) {
+    const prismaBin = path.join(root, "node_modules", ".bin", isWindows ? "prisma.cmd" : "prisma");
+    if (fs.existsSync(prismaBin)) {
+      candidates.push({
+        command: prismaBin,
+        args: ["db", "push", "--skip-generate"],
+      });
+    }
+
+    const prismaBuild = path.join(root, "node_modules", "prisma", "build", "index.js");
+    const prismaWasm = path.join(root, "node_modules", "prisma", "build", "prisma_schema_build_bg.wasm");
+    if (fs.existsSync(prismaBuild) && fs.existsSync(prismaWasm)) {
+      candidates.push({
+        command: process.execPath,
+        args: [prismaBuild, "db", "push", "--skip-generate"],
+      });
+    }
+  }
+
+  return candidates;
 }
 
 async function dedupeVisitEntriesByTimeEntryId() {
