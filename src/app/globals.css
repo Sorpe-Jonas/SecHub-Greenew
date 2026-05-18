@@ -418,6 +418,23 @@ textarea:focus {
   width: min(1180px, calc(100vw - 2rem));
   margin: 0 auto;
   padding-top: 0.5rem;
+  gap: 1rem;
+}
+
+.landingNav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.landingNav a {
+  color: rgba(247, 251, 255, 0.82);
+  font-weight: 600;
+}
+
+.landingNav a:hover {
+  color: #fff;
 }
 
 .loginHeaderButton {
@@ -440,13 +457,14 @@ textarea:focus {
 
 .landingHero {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1.05fr 0.95fr;
   gap: 2rem;
   align-items: center;
-  padding: 2.5rem;
-  border-radius: 32px;
-  background: linear-gradient(180deg, rgba(8, 19, 36, 0.96), rgba(16, 32, 51, 0.98));
+  padding: 3rem;
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgba(4, 15, 33, 0.96), rgba(15, 34, 58, 0.98));
   color: #f7fbff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.24);
 }
 
 .landingHeroContent {
@@ -455,14 +473,15 @@ textarea:focus {
 }
 
 .landingHero h1 {
-  font-size: clamp(2.5rem, 5vw, 4.2rem);
-  line-height: 1.05;
-  max-width: 18ch;
+  font-size: clamp(2.6rem, 5vw, 4.6rem);
+  line-height: 1.02;
+  max-width: 16ch;
 }
 
 .landingHero p {
-  max-width: 42rem;
+  max-width: 44rem;
   color: rgba(247, 251, 255, 0.78);
+  font-size: 1.05rem;
 }
 
 .heroActions {
@@ -471,22 +490,50 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.heroPartnerLogos {
+  display: grid;
+  gap: 1rem;
+}
+
+.heroPartnerLogos span {
+  color: rgba(247, 251, 255, 0.72);
+}
+
+.brandRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.trustedLogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .heroBadges {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 0.95rem;
 }
 
 .heroBadges div {
   padding: 1rem 1.2rem;
-  border-radius: 20px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .heroBadges strong {
   display: block;
-  font-size: 1.9rem;
+  font-size: 1.85rem;
   color: #fff;
 }
 
@@ -506,8 +553,8 @@ textarea:focus {
   max-width: 560px;
   border-radius: 32px;
   overflow: hidden;
-  background: linear-gradient(145deg, rgba(17, 36, 72, 0.9), rgba(8, 16, 32, 0.96));
-  box-shadow: 0 30px 80px rgba(4, 13, 34, 0.35);
+  background: linear-gradient(145deg, rgba(18, 44, 75, 0.9), rgba(10, 18, 35, 0.96));
+  box-shadow: 0 40px 100px rgba(4, 15, 35, 0.38);
 }
 
 .visualFrame img,
@@ -522,16 +569,16 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.9rem 1rem;
+  padding: 0.95rem 1rem;
   border-radius: 18px;
-  background: rgba(5, 20, 45, 0.84);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 18, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .visualLabel span {
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .visualLabel.topLeft {
@@ -563,18 +610,19 @@ textarea:focus {
 .serviceCard {
   display: grid;
   gap: 1rem;
-  padding: 1.5rem;
-  border-radius: 24px;
+  padding: 1.75rem;
+  border-radius: 28px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .serviceIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.12);
 }
@@ -585,8 +633,65 @@ textarea:focus {
 }
 
 .serviceCard p {
-  color: rgba(247, 251, 255, 0.75);
-  line-height: 1.7;
+  color: rgba(247, 251, 255, 0.72);
+  line-height: 1.75;
+}
+
+.landingWhy .valuesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.valueCard {
+  padding: 1.75rem;
+  border-radius: 28px;
+  background: rgba(8, 18, 35, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.14);
+}
+
+.valueCard strong {
+  display: block;
+  margin-bottom: 0.8rem;
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+.valueCard p {
+  color: rgba(247, 251, 255, 0.7);
+  line-height: 1.75;
+}
+
+.trustedBy {
+  display: grid;
+  gap: 1.4rem;
+  padding: 2.5rem;
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgba(8, 15, 31, 0.95), rgba(12, 29, 49, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trustedBy h2 {
+  margin: 0;
+  color: #f7fbff;
+}
+
+.trustedLogos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: center;
+}
+
+.trustedLogoCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .landingCta {
@@ -594,10 +699,10 @@ textarea:focus {
   grid-template-columns: 1.5fr auto;
   align-items: center;
   gap: 1.5rem;
-  padding: 2rem;
-  border-radius: 28px;
+  padding: 2.25rem;
+  border-radius: 32px;
   background: rgba(101, 217, 255, 0.08);
-  border: 1px solid rgba(101, 217, 255, 0.15);
+  border: 1px solid rgba(101, 217, 255, 0.16);
 }
 
 .landingCta h2 {
@@ -605,19 +710,43 @@ textarea:focus {
 }
 
 .landingCta p {
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0;
   color: var(--text-soft);
+  max-width: 42rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .landingHero {
     grid-template-columns: 1fr;
   }
 
-  .heroBadges,
+  .landingHeader,
+  .landingCta,
+  .trustedLogos,
   .serviceGrid,
-  .landingCta {
+  .heroBadges,
+  .landingWhy .valuesGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .landingHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .landingNav {
+    justify-content: space-between;
+  }
+
+  .heroActions {
+    width: 100%;
+  }
+
+  .trustedLogo,
+  .trustedLogoCard {
+    justify-content: start;
   }
 }
 

@@ -1,6 +1,51 @@
 import Image from "next/image";
 import Link from "next/link";
 
+const serviceList = [
+  {
+    icon: "/window.svg",
+    alt: "Servidor",
+    title: "Manutenção de servidores",
+    description: "Atualizações, hardening e recuperação com arquitetura preparada para alta disponibilidade.",
+  },
+  {
+    icon: "/globe.svg",
+    alt: "Conexão remota",
+    title: "Suporte local e remoto",
+    description: "Resolução rápida on-site e atendimento remoto com SLA transparente.",
+  },
+  {
+    icon: "/sechub-logo.svg",
+    alt: "Ativos",
+    title: "Gestão de ativos",
+    description: "Controle de hardware, software, contratos e ciclo de vida em uma única plataforma.",
+  },
+  {
+    icon: "/file.svg",
+    alt: "Tickets",
+    title: "Atendimento de chamados",
+    description: "Fluxo claro de incidentes com priorização, histórico e SLA acionável.",
+  },
+  {
+    icon: "/globe.svg",
+    alt: "Segurança",
+    title: "Segurança e compliance",
+    description: "Proteção de dados, auditorias e políticas de segurança estruturadas.",
+  },
+  {
+    icon: "/window.svg",
+    alt: "Consultoria",
+    title: "Consultoria estratégica",
+    description: "Planejamento de TI que alinha tecnologia, custos e crescimento do negócio.",
+  },
+];
+
+const partnerLogos = [
+  { src: "/sechub-logo.svg", alt: "SecHub" },
+  { src: "/next.svg", alt: "Next.js" },
+  { src: "/vercel.svg", alt: "Vercel" },
+];
+
 export default function Home() {
   return (
     <main className="pageShell landingShell">
@@ -11,18 +56,24 @@ export default function Home() {
           </span>
           <span className="brandWordmark">sechub</span>
         </div>
-        <Link className="loginHeaderButton" href="/login">
-          Entrar
-        </Link>
+
+        <nav className="landingNav">
+          <Link href="#servicos">Serviços</Link>
+          <Link href="#vantagens">Vantagens</Link>
+          <Link className="loginHeaderButton" href="/login">
+            Entrar
+          </Link>
+        </nav>
       </header>
 
       <section className="landingHero">
         <div className="landingHeroContent">
-          <span className="eyebrow">Suporte de TI para empresas</span>
-          <h1>Infraestrutura, atendimento e gestão de TI que movimentam o seu negócio.</h1>
+          <span className="eyebrow">Plataforma de TI corporativa</span>
+          <h1>Gestão de TI e suporte de infraestrutura com entrega empresarial.</h1>
           <p>
-            Transforme sua operação com serviço de TI profissional: atendimento de chamados com SLA, suporte local e remoto, manutenção de servidores e gestão de ativos.
+            Segurança, atendimento e resolução de incidentes em um portal único. Ideal para empresas que precisam de TI confiável, escalável e transparente.
           </p>
+
           <div className="heroActions">
             <Link className="primaryButton" href="/login">
               Entrar no portal
@@ -43,7 +94,18 @@ export default function Home() {
             </div>
             <div>
               <strong>99,9%</strong>
-              <span>Disponibilidade garantida</span>
+              <span>Disponibilidade</span>
+            </div>
+          </div>
+
+          <div className="heroPartnerLogos">
+            <span>Clientes que confiam na operação e governança de TI</span>
+            <div className="brandRow">
+              {partnerLogos.map((logo) => (
+                <div key={logo.alt} className="trustedLogo">
+                  <Image src={logo.src} alt={logo.alt} width={88} height={28} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -53,7 +115,7 @@ export default function Home() {
             <Image src="/window.svg" alt="Painel de serviços de TI" width={560} height={420} priority />
             <div className="visualLabel topLeft">
               <Image src="/globe.svg" alt="Rede global" width={24} height={24} />
-              <span>Monitoramento global</span>
+              <span>Monitoramento ativo</span>
             </div>
             <div className="visualLabel bottomRight">
               <Image src="/file.svg" alt="Relatórios" width={24} height={24} />
@@ -66,63 +128,64 @@ export default function Home() {
       <section className="landingSection" id="servicos">
         <div className="sectionHeader">
           <span className="eyebrow">Nossos serviços</span>
-          <h2>Especialistas em TI completa: do servidor ao atendimento.</h2>
+          <h2>TI end-to-end para operações mais seguras e eficientes.</h2>
         </div>
 
         <div className="serviceGrid">
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/window.svg" alt="Servidor" width={28} height={28} />
+          {serviceList.map((service) => (
+            <div key={service.title} className="serviceCard">
+              <div className="serviceIcon">
+                <Image src={service.icon} alt={service.alt} width={28} height={28} />
+              </div>
+              <strong>{service.title}</strong>
+              <p>{service.description}</p>
             </div>
-            <strong>Manutenção de servidores</strong>
-            <p>Suporte técnico, atualizações, hardening e recuperação de servidores.</p>
+          ))}
+        </div>
+      </section>
+
+      <section className="landingSection landingWhy" id="vantagens">
+        <div className="sectionHeader">
+          <span className="eyebrow">O que entregamos</span>
+          <h2>Operação de TI com governança, segurança e controle máximo.</h2>
+        </div>
+
+        <div className="valuesGrid">
+          <div className="valueCard">
+            <strong>Visibilidade total</strong>
+            <p>Centralize chamados, ativos e desempenho em dashboards claros para decisão rápida.</p>
           </div>
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/globe.svg" alt="Conexão remota" width={28} height={28} />
+          <div className="valueCard">
+            <strong>Segurança de ponta</strong>
+            <p>Implementamos controles, políticas e registros que mantêm sua operação alinhada às melhores práticas.</p>
+          </div>
+          <div className="valueCard">
+            <strong>Suporte dedicado</strong>
+            <p>Equipe preparada para atendimento rápido e continuidade, com compromissos de SLA reais.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="trustedBy">
+        <span className="eyebrow">Parcerias</span>
+        <h2>Plataforma criada para empresas e times que buscam estabilidade.</h2>
+        <div className="trustedLogos">
+          {partnerLogos.map((logo) => (
+            <div key={logo.alt} className="trustedLogoCard">
+              <Image src={logo.src} alt={logo.alt} width={100} height={32} />
             </div>
-            <strong>Suporte local e remoto</strong>
-            <p>Assistência rápida on-site ou por acesso remoto para reduzir tempo de parada.</p>
-          </div>
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/sechub-logo.svg" alt="Ativos" width={28} height={28} />
-            </div>
-            <strong>Gerenciamento de ativos</strong>
-            <p>Controle completo de hardware e software, ciclo de vida e inventário.</p>
-          </div>
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/file.svg" alt="Tickets" width={28} height={28} />
-            </div>
-            <strong>Atendimento de chamados</strong>
-            <p>Processo claro com SLA, priorização e solução de incidentes.</p>
-          </div>
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/globe.svg" alt="Segurança" width={28} height={28} />
-            </div>
-            <strong>Segurança e compliance</strong>
-            <p>Proteção de dados e ambiente com políticas de segurança aplicadas.</p>
-          </div>
-          <div className="serviceCard">
-            <div className="serviceIcon">
-              <Image src="/window.svg" alt="Consultoria" width={28} height={28} />
-            </div>
-            <strong>Consultoria e planejamento</strong>
-            <p>Estratégia de TI alinhada ao crescimento e à eficiência do negócio.</p>
-          </div>
+          ))}
         </div>
       </section>
 
       <section className="landingCta">
         <div>
-          <span className="eyebrow">Comece hoje</span>
-          <h2>Tenha um parceiro de TI pronto para escalar com você.</h2>
-          <p>Fale com nossa equipe, conheça nossos planos e deixe a gestão de TI nas mãos de especialistas.</p>
+          <span className="eyebrow">Comece agora</span>
+          <h2>Leve sua TI para um novo patamar com uma plataforma corporativa.</h2>
+          <p>Faça login no portal e comece a identificar riscos, reduzir custos e melhorar o suporte imediatamente.</p>
         </div>
         <Link className="secondaryButton" href="/login">
-          Conectar à área de clientes
+          Entrar no portal
         </Link>
       </section>
     </main>
