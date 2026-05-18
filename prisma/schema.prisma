@@ -30,6 +30,7 @@ enum BlockKey {
   GRAFANA
   TIMESHEET
   FINANCIAL
+  DOWNLOADS
   USERS
   COMPANIES
   AUDIT
@@ -149,6 +150,7 @@ model Company {
   notificationRecipients CompanyNotificationRecipient[]
   invitations            UserInvitation[]
   auditLogs              AuditLog[]
+  downloads              DownloadResource[]
 }
 
 model User {
@@ -169,6 +171,7 @@ model User {
   sessions                     Session[]
   blockPermissions             UserBlockPermission[]
   auditLogs                    AuditLog[]
+  uploadedDownloads            DownloadResource[]
   createdPasswordEntries       PasswordEntry[]       @relation("PasswordEntryCreatedBy")
   updatedPasswordEntries       PasswordEntry[]       @relation("PasswordEntryUpdatedBy")
   passwordEntryVersions        PasswordEntryVersion[]
@@ -474,6 +477,21 @@ model FinancialReminderRule {
   company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, enabled, documentType])
+}
+
+model DownloadResource {
+  id          String   @id @default(cuid())
+  companyId   String
+  fileName    String
+  description String?  @db.Text
+  storagePath String
+  mimeType    String
+  uploadedById String
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy  User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
 }
 
 model NotificationConfig {

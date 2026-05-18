@@ -1,9 +1,13 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
+import { gzip } from "zlib";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
+import { promisify } from "util";
 
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
+
+const gzipAsync = promisify(gzip);
 
 function sanitizeFileName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
@@ -44,23 +48,27 @@ async function getS3Client() {
 
 export async function uploadStorageFile(params: {
   file: File;
-  folder: "tickets" | "financial" | "healthcheck";
+  folder: "tickets" | "financial" | "healthcheck" | "downloads";
 }) {
   const safeName = sanitizeFileName(params.file.name || "arquivo");
-  const finalName = `${Date.now()}-${randomUUID()}-${safeName}`;
+  const baseName = `${Date.now()}-${randomUUID()}-${safeName}`;
+  const compressedName = `${baseName}.gz`;
 
   const s3 = await getS3Client();
+  const arrayBuffer = await params.file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const compressedBuffer = await gzipAsync(buffer);
 
   if (s3) {
-    const key = `${params.folder}/${finalName}`;
-    const arrayBuffer = await params.file.arrayBuffer();
+    const key = `${params.folder}/${compressedName}`;
 
     await s3.client.send(
       new PutObjectCommand({
         Bucket: s3.config.objectStorage.bucket,
         Key: key,
-        Body: Buffer.from(arrayBuffer),
+        Body: compressedBuffer,
         ContentType: params.file.type || "application/octet-stream",
+        ContentEncoding: "gzip",
       }),
     );
 
@@ -78,17 +86,14 @@ export async function uploadStorageFile(params: {
 
   const relativeDir = path.join("uploads", params.folder);
   const absoluteDir = path.join(process.cwd(), "public", relativeDir);
-  const arrayBuffer = await params.file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
   await mkdir(absoluteDir, { recursive: true });
-  await writeFile(path.join(absoluteDir, finalName), buffer);
+  await writeFile(path.join(absoluteDir, compressedName), compressedBuffer);
 
   return {
     fileName: params.file.name || safeName,
-    storagePath: `/${path.join(relativeDir, finalName).replace(/\\/g, "/")}`,
+    storagePath: `/${path.join(relativeDir, compressedName).replace(/\\/g, "/")}`,
     mimeType: params.file.type || "application/octet-stream",
-    storageKey: finalName,
+    storageKey: compressedName,
   };
 }
 

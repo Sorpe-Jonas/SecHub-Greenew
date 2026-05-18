@@ -6,6 +6,7 @@ export const blockLabels: Record<BlockKey, string> = {
   GRAFANA: "Grafana",
   TIMESHEET: "TimeSheet",
   FINANCIAL: "Financeiro",
+  DOWNLOADS: "Downloads",
   USERS: "Usuarios",
   COMPANIES: "Empresas",
   AUDIT: "Auditoria",
@@ -23,9 +24,10 @@ export function getDefaultBlocksForRole(role: UserRole) {
       BlockKey.TICKETS,
       BlockKey.GRAFANA,
       BlockKey.FINANCIAL,
+      BlockKey.DOWNLOADS,
       BlockKey.USERS,
     ];
   }
 
-  return [BlockKey.PASSWORDS, BlockKey.TICKETS, BlockKey.GRAFANA];
+  return [BlockKey.PASSWORDS, BlockKey.TICKETS, BlockKey.GRAFANA, BlockKey.DOWNLOADS];
 }

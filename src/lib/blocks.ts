@@ -51,6 +51,14 @@ export const dashboardCards: DashboardCard[] = [
     roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN],
   },
   {
+    block: BlockKey.DOWNLOADS,
+    title: "Downloads",
+    description: "Biblioteca de arquivos e links para download.",
+    href: "/downloads",
+    tone: "cyan",
+    roles: [UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN],
+  },
+  {
     block: BlockKey.USERS,
     title: "Usuarios",
     description: "Gestao de usuarios, convites e niveis de acesso por empresa.",
@@ -93,6 +101,10 @@ export function getVisibleCards(
   return dashboardCards.filter((card) => {
     if (!card.roles.includes(role)) {
       return false;
+    }
+
+    if (card.block === BlockKey.DOWNLOADS) {
+      return true;
     }
 
     if (role === UserRole.SUPER_ADMIN) {
