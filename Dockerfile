@@ -21,4 +21,4 @@ RUN cp -R public .next/standalone/public
 
 EXPOSE 3000
 
-CMD ["node", "/src/.next/standalone/server.js"]
+CMD ["sh", "-c", "npm run db:push && node /src/.next/standalone/server.js"]
