@@ -1,79 +1,128 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
   return (
     <main className="pageShell landingShell">
+      <header className="landingHeader">
+        <div className="brandHomeLink brandStatic" aria-label="SecHub">
+          <span className="brandMark" aria-hidden="true">
+            S
+          </span>
+          <span className="brandWordmark">sechub</span>
+        </div>
+        <Link className="loginHeaderButton" href="/login">
+          Entrar
+        </Link>
+      </header>
+
       <section className="landingHero">
-        <div>
-          <span className="eyebrow">Serviços de TI</span>
-          <h1>Infraestrutura, suporte e gestão de TI para sua empresa.</h1>
+        <div className="landingHeroContent">
+          <span className="eyebrow">Suporte de TI para empresas</span>
+          <h1>Infraestrutura, atendimento e gestão de TI que movimentam o seu negócio.</h1>
           <p>
-            Soluções completas em manutenção de servidores e computadores, gerenciamento de ativos, suporte remoto e local, atendimento de chamados e monitoramento de SLA.
+            Transforme sua operação com serviço de TI profissional: atendimento de chamados com SLA, suporte local e remoto, manutenção de servidores e gestão de ativos.
           </p>
           <div className="heroActions">
             <Link className="primaryButton" href="/login">
-              Acessar área do cliente
+              Entrar no portal
             </Link>
+            <Link className="secondaryButton" href="#servicos">
+              Ver serviços
+            </Link>
+          </div>
+
+          <div className="heroBadges">
+            <div>
+              <strong>24/7</strong>
+              <span>Suporte contínuo</span>
+            </div>
+            <div>
+              <strong>+350</strong>
+              <span>Ativos sob gestão</span>
+            </div>
+            <div>
+              <strong>99,9%</strong>
+              <span>Disponibilidade garantida</span>
+            </div>
           </div>
         </div>
 
-        <div className="landingStats">
-          <div>
-            <strong>24/7</strong>
-            <span>Suporte local e remoto</span>
-          </div>
-          <div>
-            <strong>+300</strong>
-            <span>Ativos gerenciados</span>
-          </div>
-          <div>
-            <strong>100%</strong>
-            <span>SLA de atendimento</span>
+        <div className="landingHeroVisual">
+          <div className="visualFrame">
+            <Image src="/window.svg" alt="Painel de serviços de TI" width={560} height={420} priority />
+            <div className="visualLabel topLeft">
+              <Image src="/globe.svg" alt="Rede global" width={24} height={24} />
+              <span>Monitoramento global</span>
+            </div>
+            <div className="visualLabel bottomRight">
+              <Image src="/file.svg" alt="Relatórios" width={24} height={24} />
+              <span>Relatórios de SLA</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="landingSection">
+      <section className="landingSection" id="servicos">
         <div className="sectionHeader">
-          <span className="eyebrow">O que fazemos</span>
-          <h2>Serviços pensados para aumentar disponibilidade e reduzir custos.</h2>
+          <span className="eyebrow">Nossos serviços</span>
+          <h2>Especialistas em TI completa: do servidor ao atendimento.</h2>
         </div>
 
-        <div className="featureGrid">
-          <div className="featureCard">
+        <div className="serviceGrid">
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/window.svg" alt="Servidor" width={28} height={28} />
+            </div>
             <strong>Manutenção de servidores</strong>
-            <span>Instalação, configuração e hardening de servidores físicos e virtuais.</span>
+            <p>Suporte técnico, atualizações, hardening e recuperação de servidores.</p>
           </div>
-          <div className="featureCard">
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/globe.svg" alt="Conexão remota" width={28} height={28} />
+            </div>
             <strong>Suporte local e remoto</strong>
-            <span>Atendimento ágil para resolver problemas no escritório ou via conexão segura.</span>
+            <p>Assistência rápida on-site ou por acesso remoto para reduzir tempo de parada.</p>
           </div>
-          <div className="featureCard">
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/sechub-logo.svg" alt="Ativos" width={28} height={28} />
+            </div>
             <strong>Gerenciamento de ativos</strong>
-            <span>Inventário e ciclo de vida de hardware e software para controle total do parque.</span>
+            <p>Controle completo de hardware e software, ciclo de vida e inventário.</p>
           </div>
-          <div className="featureCard">
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/file.svg" alt="Tickets" width={28} height={28} />
+            </div>
             <strong>Atendimento de chamados</strong>
-            <span>Processo estruturado de SLA para priorizar e acompanhar todas as demandas.</span>
+            <p>Processo claro com SLA, priorização e solução de incidentes.</p>
           </div>
-          <div className="featureCard">
-            <strong>Segurança operacional</strong>
-            <span>Monitoramento e ajustes que mantêm seu ambiente protegido e disponível.</span>
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/globe.svg" alt="Segurança" width={28} height={28} />
+            </div>
+            <strong>Segurança e compliance</strong>
+            <p>Proteção de dados e ambiente com políticas de segurança aplicadas.</p>
           </div>
-          <div className="featureCard">
-            <strong>Consultoria em TI</strong>
-            <span>Análises e recomendações para alinhar tecnologia e objetivos de negócio.</span>
+          <div className="serviceCard">
+            <div className="serviceIcon">
+              <Image src="/window.svg" alt="Consultoria" width={28} height={28} />
+            </div>
+            <strong>Consultoria e planejamento</strong>
+            <p>Estratégia de TI alinhada ao crescimento e à eficiência do negócio.</p>
           </div>
         </div>
       </section>
 
       <section className="landingCta">
         <div>
-          <h2>Pronto para modernizar seu TI?</h2>
-          <p>Agende uma conversa e descubra como reduzir riscos, aumentar performance e melhorar a experiência do usuário.</p>
+          <span className="eyebrow">Comece hoje</span>
+          <h2>Tenha um parceiro de TI pronto para escalar com você.</h2>
+          <p>Fale com nossa equipe, conheça nossos planos e deixe a gestão de TI nas mãos de especialistas.</p>
         </div>
         <Link className="secondaryButton" href="/login">
-          Acessar sistema / Login
+          Conectar à área de clientes
         </Link>
       </section>
     </main>

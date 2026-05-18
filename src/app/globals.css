@@ -411,13 +411,47 @@ textarea:focus {
   padding: 3rem 0 4rem;
 }
 
+.landingHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: min(1180px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding-top: 0.5rem;
+}
+
+.loginHeaderButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-weight: 600;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.loginHeaderButton:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
 .landingHero {
   display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
   gap: 2rem;
+  align-items: center;
   padding: 2.5rem;
   border-radius: 32px;
   background: linear-gradient(180deg, rgba(8, 19, 36, 0.96), rgba(16, 32, 51, 0.98));
   color: #f7fbff;
+}
+
+.landingHeroContent {
+  display: grid;
+  gap: 1.5rem;
 }
 
 .landingHero h1 {
@@ -437,27 +471,77 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
-.landingStats {
+.heroBadges {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.9rem;
 }
 
-.landingStats div {
-  padding: 1.4rem;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.04);
+.heroBadges div {
+  padding: 1rem 1.2rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.landingStats strong {
+.heroBadges strong {
   display: block;
-  font-size: 2rem;
+  font-size: 1.9rem;
   color: #fff;
 }
 
-.landingStats span {
-  color: rgba(247, 251, 255, 0.72);
+.heroBadges span {
+  color: rgba(247, 251, 255, 0.78);
+}
+
+.landingHeroVisual {
+  display: grid;
+  place-items: center;
+}
+
+.visualFrame {
+  position: relative;
+  min-height: 420px;
+  width: 100%;
+  max-width: 560px;
+  border-radius: 32px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(17, 36, 72, 0.9), rgba(8, 16, 32, 0.96));
+  box-shadow: 0 30px 80px rgba(4, 13, 34, 0.35);
+}
+
+.visualFrame img,
+.visualFrame .next-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.visualLabel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(5, 20, 45, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.visualLabel span {
+  opacity: 0.9;
+}
+
+.visualLabel.topLeft {
+  top: 1rem;
+  left: 1rem;
+}
+
+.visualLabel.bottomRight {
+  bottom: 1rem;
+  right: 1rem;
 }
 
 .landingSection {
@@ -470,27 +554,39 @@ textarea:focus {
   margin: 0;
 }
 
-.featureGrid {
+.serviceGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.featureCard {
+.serviceCard {
+  display: grid;
+  gap: 1rem;
   padding: 1.5rem;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.featureCard strong {
-  display: block;
-  margin-bottom: 0.8rem;
+.serviceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.serviceCard strong {
+  font-size: 1.1rem;
   color: #fff;
 }
 
-.featureCard span {
-  color: rgba(247, 251, 255, 0.72);
+.serviceCard p {
+  color: rgba(247, 251, 255, 0.75);
+  line-height: 1.7;
 }
 
 .landingCta {
@@ -514,8 +610,12 @@ textarea:focus {
 }
 
 @media (max-width: 900px) {
-  .landingStats,
-  .featureGrid,
+  .landingHero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroBadges,
+  .serviceGrid,
   .landingCta {
     grid-template-columns: 1fr;
   }
