@@ -88,6 +88,7 @@ export async function addDownloadResourceAction(
 }
 
 export async function removeDownloadResourceAction(
+  _prevState: DownloadFormState,
   formData: FormData,
 ): Promise<DownloadFormState> {
   const user = await requireCurrentUser();

@@ -405,6 +405,122 @@ textarea:focus {
   background: var(--bg-elevated);
 }
 
+.landingShell {
+  display: grid;
+  gap: 2.5rem;
+  padding: 3rem 0 4rem;
+}
+
+.landingHero {
+  display: grid;
+  gap: 2rem;
+  padding: 2.5rem;
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgba(8, 19, 36, 0.96), rgba(16, 32, 51, 0.98));
+  color: #f7fbff;
+}
+
+.landingHero h1 {
+  font-size: clamp(2.5rem, 5vw, 4.2rem);
+  line-height: 1.05;
+  max-width: 18ch;
+}
+
+.landingHero p {
+  max-width: 42rem;
+  color: rgba(247, 251, 255, 0.78);
+}
+
+.heroActions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.landingStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.landingStats div {
+  padding: 1.4rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landingStats strong {
+  display: block;
+  font-size: 2rem;
+  color: #fff;
+}
+
+.landingStats span {
+  color: rgba(247, 251, 255, 0.72);
+}
+
+.landingSection {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.sectionHeader h2 {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  margin: 0;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.featureCard {
+  padding: 1.5rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.featureCard strong {
+  display: block;
+  margin-bottom: 0.8rem;
+  color: #fff;
+}
+
+.featureCard span {
+  color: rgba(247, 251, 255, 0.72);
+}
+
+.landingCta {
+  display: grid;
+  grid-template-columns: 1.5fr auto;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  border-radius: 28px;
+  background: rgba(101, 217, 255, 0.08);
+  border: 1px solid rgba(101, 217, 255, 0.15);
+}
+
+.landingCta h2 {
+  margin: 0;
+}
+
+.landingCta p {
+  margin: 0.5rem 0 0;
+  color: var(--text-soft);
+}
+
+@media (max-width: 900px) {
+  .landingStats,
+  .featureGrid,
+  .landingCta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

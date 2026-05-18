@@ -15,8 +15,8 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SecHub",
-  description: "Portal central com autenticacao, tickets, cofre de senhas e modulos internos.",
+  title: "SecHub - Serviços de TI",
+  description: "Empresa de TI especializada em suporte remoto, manutenção de servidores, gerenciamento de ativos e atendimento de chamados com SLA.",
   manifest: "/manifest.webmanifest",
 };
 
