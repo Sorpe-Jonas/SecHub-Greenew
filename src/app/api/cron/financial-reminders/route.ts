@@ -6,6 +6,7 @@ import {
   financialDocumentLabels,
   formatCurrency,
   formatFinancialPeriodLabel,
+  formatDecimalHoursToHMM,
 } from "@/lib/financial";
 import { notifyFinancialReminder, sendMail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -53,8 +54,8 @@ function buildEmailHtml(params: {
         <p style="margin:0 0 16px 0;line-height:1.6;color:#475569">${params.intro}</p>
         <div style="padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:24px">
           <p style="margin:0 0 8px 0"><strong>Competencia:</strong> ${formatFinancialPeriodLabel(params.periodStart, params.periodEnd)}</p>
-          <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${params.summary.includedHoursUsed.toFixed(2)}h</p>
-          <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${params.summary.extraHoursUsed.toFixed(2)}h</p>
+          <p style="margin:0 0 8px 0"><strong>Horas dentro da franquia:</strong> ${formatDecimalHoursToHMM(params.summary.includedHoursUsed)}</p>
+          <p style="margin:0 0 8px 0"><strong>Horas extras:</strong> ${formatDecimalHoursToHMM(params.summary.extraHoursUsed)}</p>
           <p style="margin:0 0 8px 0"><strong>Visitas:</strong> ${params.summary.visitCount}</p>
           <p style="margin:0"><strong>Total:</strong> ${formatCurrency(params.summary.total)}</p>
         </div>

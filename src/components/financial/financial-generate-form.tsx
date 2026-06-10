@@ -6,6 +6,7 @@ import {
   generateFinancialStatementAction,
   type FinancialFormState,
 } from "@/app/actions/financial-actions";
+import { formatDecimalHoursToHMM } from "@/lib/financial";
 import { SubmitButton } from "@/components/auth/submit-button";
 
 const initialState: FinancialFormState = {};
@@ -33,11 +34,11 @@ export function FinancialGenerateForm(props: {
         </div>
         <div>
           <strong>Franquia</strong>
-          <span>{props.includedHours.toFixed(2)}h</span>
+          <span>{formatDecimalHoursToHMM(props.includedHours)}</span>
         </div>
         <div>
           <strong>Horas excedentes</strong>
-          <span>{props.extraHours.toFixed(2)}h</span>
+          <span>{formatDecimalHoursToHMM(props.extraHours)}</span>
         </div>
         <div>
           <strong>Visitas</strong>

@@ -19,6 +19,7 @@ import {
   formatFinancialPeriodLabel,
   formatCurrency,
   getFinancialCycleBounds,
+  formatDecimalHoursToHMM,
 } from "@/lib/financial";
 import { prisma } from "@/lib/prisma";
 import { isMissingSchemaError } from "@/lib/prisma-errors";
@@ -217,7 +218,7 @@ export default async function FinancialPage() {
       <section className="statsGrid">
         <article className="statCard">
           <strong>Horas no periodo</strong>
-          <h2>{currentHours.toFixed(2)}h</h2>
+          <h2>{formatDecimalHoursToHMM(currentHours)}</h2>
           <span>Base dos lancamentos do TimeSheet no ciclo atual.</span>
         </article>
         <article className="statCard">
@@ -347,11 +348,11 @@ export default async function FinancialPage() {
                 <div className="detailList">
                   <div>
                     <strong>Horas usadas na franquia</strong>
-                    <span>{Number(statement.includedHoursUsed).toFixed(2)}h</span>
+                    <span>{formatDecimalHoursToHMM(Number(statement.includedHoursUsed))}</span>
                   </div>
                   <div>
                     <strong>Horas excedentes</strong>
-                    <span>{Number(statement.extraHoursUsed).toFixed(2)}h</span>
+                    <span>{formatDecimalHoursToHMM(Number(statement.extraHoursUsed))}</span>
                   </div>
                   <div>
                     <strong>Visitas</strong>

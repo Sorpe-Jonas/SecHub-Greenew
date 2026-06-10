@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { type Company, type Ticket, type User } from "@prisma/client";
 
 import { getPlatformRuntimeConfig } from "@/lib/runtime-settings";
+import { formatDecimalHoursToHMM } from "@/lib/financial";
 import { ticketCategoryLabels, ticketPriorityLabels, ticketStatusLabels } from "@/lib/tickets";
 
 type TicketContext = Ticket & {
@@ -295,7 +296,7 @@ export async function notifyFinancialStatementGenerated(params: {
     lines: [
       `Empresa: ${params.companyName || "N/D"}`,
       `Total: R$ ${params.total.toFixed(2)}`,
-      `Horas extras: ${params.extraHoursUsed.toFixed(2)}h`,
+      `Horas extras: ${formatDecimalHoursToHMM(params.extraHoursUsed)}`,
       `Visitas: ${params.visitCount}`,
     ],
   });

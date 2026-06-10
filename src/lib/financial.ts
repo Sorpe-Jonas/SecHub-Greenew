@@ -130,3 +130,10 @@ export function buildFinancialSummary(params: {
     visitsTotal,
   };
 }
+
+export function formatDecimalHoursToHMM(decimalHours: number) {
+  const totalMinutes = Math.round(Number(decimalHours) * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.abs(totalMinutes % 60);
+  return `${hours}h${minutes.toString().padStart(2, "0")}min`;
+}
