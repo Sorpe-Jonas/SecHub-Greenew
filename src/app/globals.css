@@ -661,7 +661,7 @@ input:focus, select:focus, textarea:focus {
 .appSidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
