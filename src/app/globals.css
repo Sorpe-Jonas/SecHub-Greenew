@@ -1462,6 +1462,10 @@ textarea:focus {
   border-right: 1px solid var(--line);
   backdrop-filter: blur(20px);
   overflow-y: auto;
+  scrollbar-width: none;
+}
+.appSidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebarBrand {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TicketStatus, TimeEntryType, UserRole } from "@prisma/client";
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -41,6 +42,10 @@ const statusColors: Record<TicketStatus, string> = {
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
+
+  if (user.role === UserRole.USER) {
+    redirect("/support");
+  }
 
   const companyId = user.companyId ?? undefined;
 
@@ -106,7 +111,7 @@ export default async function DashboardPage() {
     OTHER: "#a78bfa",
   };
 
-  const isBillingView = user.role !== UserRole.USER;
+  const isBillingView = true;
 
   return (
     <AppShell
