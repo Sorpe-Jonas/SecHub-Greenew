@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { TicketCreateForm } from "@/components/support/ticket-create-form";
 import { canManageCompanyTickets, requireCurrentUser } from "@/lib/authz";
 import { getTicketCatalogItem, ticketCatalog } from "@/lib/tickets";
@@ -17,10 +17,15 @@ export default async function SupportPage({
   const selectedCategory = getTicketCatalogItem(category);
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Suporte</span>
           <h1>Chamados e atendimento</h1>
           <p>
@@ -103,6 +108,6 @@ export default async function SupportPage({
           periodo, status, prioridade, exportacao CSV e resumo com indicadores.
         </p>
       </section>
-    </main>
+    </AppShell>
   );
 }

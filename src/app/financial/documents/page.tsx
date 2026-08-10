@@ -2,7 +2,7 @@ import Link from "next/link";
 import { UserRole } from "@prisma/client";
 
 import { deleteFinancialDocumentAction } from "@/app/actions/financial-actions";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { FinancialDocumentForm } from "@/components/financial/financial-document-form";
 import { FinancialDocumentStatusForm } from "@/components/financial/financial-document-status-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -69,16 +69,21 @@ export default async function FinancialDocumentsPage() {
       console.error("Financial documents page schema is out of date.", error);
 
       return (
-        <main className="supportShell">
-          <section className="supportHeader">
+        <AppShell
+          role={user.role}
+          permissions={user.blockPermissions}
+          userName={user.name}
+          userEmail={user.email}
+          companyName={user.company?.name}
+        >
+          <section className="appPageHeader">
             <div>
-              <BrandHomeLink />
               <span className="eyebrow">Financeiro / Documentos</span>
               <h1>Documentos temporariamente indisponiveis</h1>
               <p>O banco de dados de producao ainda nao recebeu a estrutura desta area.</p>
             </div>
           </section>
-        </main>
+        </AppShell>
       );
     }
 
@@ -89,10 +94,15 @@ export default async function FinancialDocumentsPage() {
   const isClientView = user.role === UserRole.USER;
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Financeiro / Documentos</span>
           <h1>Documentos financeiros</h1>
           <p>
@@ -205,6 +215,6 @@ export default async function FinancialDocumentsPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

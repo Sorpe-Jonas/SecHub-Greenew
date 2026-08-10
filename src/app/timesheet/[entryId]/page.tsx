@@ -2,7 +2,7 @@ import { UserRole } from "@prisma/client";
 import { notFound, redirect } from "next/navigation";
 
 import { deleteTimeEntryAction } from "@/app/actions/timesheet-actions";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { TimeEntryForm } from "@/components/timesheet/time-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -43,10 +43,15 @@ export default async function TimesheetEntryPage({
   });
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">TimeSheet</span>
           <h1>Editar lancamento</h1>
           <p>Voce pode ajustar horarios e descricao caso o atendimento precise de correcao manual.</p>
@@ -79,6 +84,6 @@ export default async function TimesheetEntryPage({
           </button>
         </form>
       </section>
-    </main>
+    </AppShell>
   );
 }

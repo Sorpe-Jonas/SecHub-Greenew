@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RunningTimerStatus, UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { RunningTimerCard } from "@/components/timesheet/running-timer-card";
 import { TimeEntryForm } from "@/components/timesheet/time-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -69,10 +69,15 @@ export default async function TimesheetPage() {
   }));
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">TimeSheet</span>
           <h1>Horas, atendimento e visitas</h1>
           <p>
@@ -152,6 +157,6 @@ export default async function TimesheetPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

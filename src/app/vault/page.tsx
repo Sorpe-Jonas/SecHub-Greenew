@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { VaultQuickActions } from "@/components/vault/vault-quick-actions";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -26,67 +26,74 @@ export default async function VaultPage() {
   });
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
-        <div>
-          <BrandHomeLink />
-          <span className="eyebrow">Senhas</span>
-          <h1>Cofre corporativo</h1>
-          <p>
-            Credenciais compartilhadas por empresa com criptografia, historico de versoes e trilha
-            de auditoria para visualizacao, edicao e rollback.
-          </p>
-        </div>
-      </section>
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <div className="dashboardPage">
+        <header className="appPageHeader">
+          <div>
+            <span className="eyebrow">Senhas</span>
+            <h1>Cofre corporativo</h1>
+            <p>
+              Credenciais compartilhadas por empresa com criptografia, historico de versoes e trilha
+              de auditoria para visualizacao, edicao e rollback.
+            </p>
+          </div>
+        </header>
 
-      <section className="ticketDetailGrid">
-        <article className="supportPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Nova credencial</span>
-              <h2>Cadastrar no cofre</h2>
+        <section className="ticketDetailGrid">
+          <article className="supportPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Nova credencial</span>
+                <h2>Cadastrar no cofre</h2>
+              </div>
             </div>
-          </div>
-          <PasswordEntryForm mode="create" />
-        </article>
+            <PasswordEntryForm mode="create" />
+          </article>
 
-        <article className="supportPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Credenciais</span>
-              <h2>Itens atuais</h2>
+          <article className="supportPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Credenciais</span>
+                <h2>Itens atuais</h2>
+              </div>
             </div>
-          </div>
-          <div className="ticketTable">
-            {entries.length === 0 ? (
-              <p className="helperText">Nenhuma credencial cadastrada ainda.</p>
-            ) : (
-              entries.map((entry) => (
-                <div key={entry.id} className="statementCard">
-                  <Link className="ticketRow" href={`/vault/${entry.id}`}>
-                    <div>
-                      <strong>{entry.title}</strong>
-                      <span>
-                        {entry.username} · {entry.vault.name}
-                      </span>
-                    </div>
-                    <div>
-                      <strong>{entry.url ? "Com URL" : "Sem URL"}</strong>
-                      <span>{entry.tags.length > 0 ? entry.tags.join(", ") : "Sem tags"}</span>
-                    </div>
-                  </Link>
-                  <VaultQuickActions
-                    entryId={entry.id}
-                    username={entry.username}
-                    url={entry.url}
-                    canDelete={user.role === "SUPER_ADMIN" || user.role === "ADMIN"}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        </article>
-      </section>
-    </main>
+            <div className="ticketTable">
+              {entries.length === 0 ? (
+                <p className="helperText">Nenhuma credencial cadastrada ainda.</p>
+              ) : (
+                entries.map((entry) => (
+                  <div key={entry.id} className="statementCard">
+                    <Link className="ticketRow" href={`/vault/${entry.id}`}>
+                      <div>
+                        <strong>{entry.title}</strong>
+                        <span>
+                          {entry.username} · {entry.vault.name}
+                        </span>
+                      </div>
+                      <div>
+                        <strong>{entry.url ? "Com URL" : "Sem URL"}</strong>
+                        <span>{entry.tags.length > 0 ? entry.tags.join(", ") : "Sem tags"}</span>
+                      </div>
+                    </Link>
+                    <VaultQuickActions
+                      entryId={entry.id}
+                      username={entry.username}
+                      url={entry.url}
+                      canDelete={user.role === "SUPER_ADMIN" || user.role === "ADMIN"}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+          </article>
+        </section>
+      </div>
+    </AppShell>
   );
 }

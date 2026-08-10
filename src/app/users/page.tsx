@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { InvitationManagementForm } from "@/components/admin/invitation-management-form";
 import { UserAccessForm } from "@/components/admin/user-access-form";
 import { UserInviteForm } from "@/components/admin/user-invite-form";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -58,10 +58,15 @@ export default async function UsersPage() {
   ]);
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={currentUser.role}
+      permissions={currentUser.blockPermissions}
+      userName={currentUser.name}
+      userEmail={currentUser.email}
+      companyName={currentUser.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Usuarios</span>
           <h1>Convites, roles e blocos</h1>
           <p>Crie acessos internos, acompanhe convites pendentes e ajuste os blocos disponiveis para cada usuario.</p>
@@ -158,6 +163,6 @@ export default async function UsersPage() {
           ))}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

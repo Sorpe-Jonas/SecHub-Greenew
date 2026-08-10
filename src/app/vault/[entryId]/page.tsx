@@ -6,7 +6,7 @@ import {
   getDecryptedPassword,
   rollbackPasswordEntryAction,
 } from "@/app/actions/password-actions";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { SecretField } from "@/components/vault/secret-field";
 import { PasswordEntryForm } from "@/components/vault/password-entry-form";
 import { requireCurrentUser } from "@/lib/authz";
@@ -44,10 +44,15 @@ export default async function VaultEntryDetailPage({
   const decryptedPassword = await getDecryptedPassword(entry.id);
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Cofre / {entry.vault.name}</span>
           <h1>{entry.title}</h1>
           <p>
@@ -149,6 +154,6 @@ export default async function VaultEntryDetailPage({
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

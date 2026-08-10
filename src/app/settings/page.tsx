@@ -11,7 +11,7 @@ import {
   saveTelegramSettingsAction,
   testTelegramSettingsAction,
 } from "@/app/actions/settings-actions";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireCurrentUser } from "@/lib/authz";
 import { telegramNotificationCatalog } from "@/lib/notifications";
@@ -47,10 +47,15 @@ export default async function SettingsPage() {
   const objectStorage = (settings.find((item) => item.key === "object_storage_settings")?.value as Record<string, unknown> | undefined) ?? {};
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Configuracoes</span>
           <h1>Integracoes e politicas globais</h1>
           <p>
@@ -383,6 +388,6 @@ export default async function SettingsPage() {
           </div>
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

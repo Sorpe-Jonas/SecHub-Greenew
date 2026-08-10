@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { TicketAttachmentItem } from "@/components/support/ticket-attachment-item";
 import { TicketAttachmentForm } from "@/components/support/ticket-attachment-form";
 import { TicketManagementForm } from "@/components/support/ticket-management-form";
@@ -99,10 +99,15 @@ export default async function TicketDetailPage({
   });
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Ticket #{ticket.id.slice(-6).toUpperCase()}</span>
           <h1>{ticket.title}</h1>
           <p>
@@ -219,6 +224,6 @@ export default async function TicketDetailPage({
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

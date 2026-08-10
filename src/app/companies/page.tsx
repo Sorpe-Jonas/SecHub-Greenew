@@ -2,7 +2,7 @@ import { InvitationStatus, UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { CompanyForm } from "@/components/admin/company-form";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -28,10 +28,15 @@ export default async function CompaniesPage() {
   });
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Empresas</span>
           <h1>Ambiente multiempresa</h1>
           <p>O Admin Total cria empresas, acompanha usuarios por tenant e controla o crescimento da plataforma.</p>
@@ -84,6 +89,6 @@ export default async function CompaniesPage() {
           </div>
         </section>
       </section>
-    </main>
+    </AppShell>
   );
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import {
   auditModuleLabels,
   buildAuditExportQuery,
@@ -68,10 +68,15 @@ export default async function AuditPage({
   const exportQuery = buildAuditExportQuery(params);
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Administracao</span>
           <h1>Auditoria</h1>
           <p>Logs de autenticacao, cofre, tickets, usuarios e configuracoes da plataforma.</p>
@@ -152,6 +157,6 @@ export default async function AuditPage({
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

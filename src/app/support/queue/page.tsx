@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TicketPriority, TicketStatus, UserRole } from "@prisma/client";
 
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { requireCurrentUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import {
@@ -101,10 +101,15 @@ export default async function SupportQueuePage({
     .slice(0, 5);
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Suporte / Fila</span>
           <h1>Fila de tickets e relatorios</h1>
           <p>
@@ -283,6 +288,6 @@ export default async function SupportQueuePage({
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

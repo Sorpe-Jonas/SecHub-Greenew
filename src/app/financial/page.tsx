@@ -4,7 +4,7 @@ import { FinancialStatementStatus, TimeEntryType, UserRole } from "@prisma/clien
 import {
   sendFinancialReminderAction,
 } from "@/app/actions/financial-actions";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { AppShell } from "@/components/layout/app-shell";
 import { FinancialGenerateForm } from "@/components/financial/financial-generate-form";
 import { FinancialProfileForm } from "@/components/financial/financial-profile-form";
 import { FinancialRecipientList } from "@/components/financial/financial-recipient-list";
@@ -82,10 +82,15 @@ export default async function FinancialPage() {
       console.error("Financial page schema is out of date.", error);
 
       return (
-        <main className="supportShell">
-          <section className="supportHeader">
+        <AppShell
+          role={user.role}
+          permissions={user.blockPermissions}
+          userName={user.name}
+          userEmail={user.email}
+          companyName={user.company?.name}
+        >
+          <section className="appPageHeader">
             <div>
-              <BrandHomeLink />
               <span className="eyebrow">Financeiro</span>
               <h1>Modulo financeiro em atualizacao</h1>
               <p>
@@ -107,7 +112,7 @@ export default async function FinancialPage() {
             </p>
             {user.role === UserRole.SUPER_ADMIN ? <FinancialSchemaSyncForm /> : null}
           </section>
-        </main>
+        </AppShell>
       );
     }
 
@@ -199,10 +204,15 @@ export default async function FinancialPage() {
     currentVisits * visitRate;
 
   return (
-    <main className="supportShell">
-      <section className="supportHeader">
+    <AppShell
+      role={user.role}
+      permissions={user.blockPermissions}
+      userName={user.name}
+      userEmail={user.email}
+      companyName={user.company?.name}
+    >
+      <section className="appPageHeader">
         <div>
-          <BrandHomeLink />
           <span className="eyebrow">Financeiro</span>
           <h1>{isClientView ? "Documentos financeiros" : "Resumo financeiro da empresa"}</h1>
           <p>
@@ -429,6 +439,6 @@ export default async function FinancialPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }
