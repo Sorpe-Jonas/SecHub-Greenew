@@ -76,9 +76,16 @@ export default async function DashboardPage() {
       prisma.visitEntry.count({
         where: companyId ? { companyId } : undefined,
       }),
-      prisma.financialStatement.aggregate({
-        where: companyId ? { companyId } : undefined,
-        _sum: { total: true },
+      prisma.financialStatement.findFirst({
+        where: {
+          ...(companyId ? { companyId } : {}),
+          referenceMonth: {
+            gte: new Date(now.getFullYear(), now.getMonth(), 1),
+            lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+          },
+        },
+        orderBy: { referenceMonth: "desc" },
+        select: { total: true },
       }),
       prisma.user.count({
         where: companyId ? { companyId } : undefined,
@@ -157,8 +164,8 @@ export default async function DashboardPage() {
           {isBillingView ? (
             <article className="statCard">
               <strong>Faturamento</strong>
-              <h2>{formatCurrency(financialTotal._sum.total ?? 0)}</h2>
-              <span>Total dos demonstrativos</span>
+              <h2>{formatCurrency(financialTotal?.total ?? 0)}</h2>
+              <span>Faturamento do mes atual</span>
             </article>
           ) : null}
           <article className="statCard">
