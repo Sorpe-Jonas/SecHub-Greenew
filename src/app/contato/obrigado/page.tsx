@@ -1,38 +1,39 @@
 import Link from "next/link";
 
+import { SiteFooter } from "@/components/landing/site-footer";
+import { SiteHeader } from "@/components/landing/site-header";
+
 export default function ContactThanksPage() {
   return (
-    <main className="pageShell">
-      <section className="loginShell">
-        <div className="loginCard">
-          <div className="loginBrand">
-            <div className="brandHomeLink brandStatic" aria-label="SecHub">
-              <span className="brandMark" aria-hidden="true">
-                S
-              </span>
-              <span className="brandWordmark">sechub</span>
-            </div>
-            <p>Plataforma de TI corporativa.</p>
-          </div>
+    <div className="landing-wrapper">
+      <div className="bg-glow bg-glow--top-left" />
+      <div className="bg-grid" />
 
-          <div className="loginHeading">
+      <main className="pageShell landingContainer">
+        <SiteHeader />
+
+        <section className="contactSection">
+          <div className="sectionHeader">
             <span className="eyebrow">Recebemos seu contato</span>
-            <h1>Obrigado!</h1>
-            <p>
-              Registramos os seus dados com sucesso. Em breve nosso time entra
-              em contato para dar continuidade.
+            <h1 className="contactTitle">Obrigado!</h1>
+            <p className="contactSubtitle">
+              Registramos os seus dados com sucesso. Em breve nosso time entra em
+              contato para dar continuidade.
             </p>
           </div>
 
-          <Link className="primaryButton" href="/">
-            Voltar para o inicio
-          </Link>
+          <div className="heroActions">
+            <Link className="primaryButton" href="/">
+              Voltar para o inicio
+            </Link>
+            <Link className="secondaryButton" href="/login">
+              Entrar no portal
+            </Link>
+          </div>
+        </section>
+      </main>
 
-          <p className="helperText">
-            Ja e cliente? <Link href="/login">Entrar no portal</Link>.
-          </p>
-        </div>
-      </section>
-    </main>
+      <SiteFooter />
+    </div>
   );
 }
