@@ -51,13 +51,6 @@ const serviceList = [
   },
 ];
 
-const stats = [
-  { value: "24/7", label: "Suporte contínuo" },
-  { value: "+350", label: "Ativos sob gestão" },
-  { value: "99,9%", label: "Disponibilidade" },
-  { value: "< 15min", label: "Tempo médio de resposta" },
-];
-
 const values = [
   {
     icon: "👁️",
@@ -130,15 +123,6 @@ export default function Home() {
                 Ver serviços
               </Link>
             </div>
-
-            <div className="heroBadges">
-              {stats.map((stat) => (
-                <div key={stat.label} className="badge-card">
-                  <strong>{stat.value}</strong>
-                  <span>{stat.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="landingHeroVisual">
@@ -166,20 +150,9 @@ export default function Home() {
                     <div className="mini-chart-bar" style={{ height: "40%" }} />
                     <div className="mini-chart-bar" style={{ height: "75%" }} />
                   </div>
-                  <div className="mini-stats">
-                    <div className="mini-stat">
-                      <span className="mini-stat-value">98%</span>
-                      <span className="mini-stat-label">SLA</span>
-                    </div>
-                    <div className="mini-stat">
-                      <span className="mini-stat-value">12</span>
-                      <span className="mini-stat-label">Ativos</span>
-                    </div>
-                    <div className="mini-stat">
-                      <span className="mini-stat-value">3</span>
-                      <span className="mini-stat-label">Abertos</span>
-                    </div>
-                  </div>
+                  <p className="hero-card-note">
+                    Chamados, ativos e indicadores de SLA reunidos em um painel único.
+                  </p>
                 </div>
               </div>
             </div>
@@ -261,6 +234,31 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* ── Footer ── */}
+      <footer className="landingFooter">
+        <div className="landingFooterInner">
+          <div className="landingFooterBrand">
+            <div className="brandHomeLink brandStatic" aria-label="SecHub">
+              <span className="brandMark" aria-hidden="true">S</span>
+              <span className="brandWordmark">sechub</span>
+            </div>
+            <p>
+              Gestão de TI, suporte de infraestrutura e atendimento corporativo
+              em uma única plataforma.
+            </p>
+          </div>
+          <nav className="landingFooterNav" aria-label="Rodape">
+            <Link href="#servicos">Serviços</Link>
+            <Link href="#vantagens">Vantagens</Link>
+            <Link href="/contato">Contato</Link>
+            <Link href="/login">Entrar</Link>
+          </nav>
+        </div>
+        <div className="landingFooterBottom">
+          <span>© {new Date().getFullYear()} SecHub. Todos os direitos reservados.</span>
+        </div>
+      </footer>
     </div>
   );
 }

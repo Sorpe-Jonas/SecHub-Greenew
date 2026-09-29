@@ -259,12 +259,15 @@ input:focus, select:focus, textarea:focus {
   flex-wrap: wrap;
 }
 .landingNav a {
-  color: rgba(232, 244, 255, 0.75);
+  color: rgba(232, 244, 255, 0.9);
   font-weight: 500;
   font-size: 0.95rem;
   transition: color var(--transition);
 }
 .landingNav a:hover { color: #fff; }
+
+.landingHeader .brandWordmark,
+.landingFooter .brandWordmark { color: var(--text-main); }
 
 .loginHeaderButton {
   display: inline-flex;
@@ -328,37 +331,6 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 60px rgba(56,189,248,0.45);
 }
 
-.heroBadges {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-.badge-card {
-  padding: 1rem 0.75rem;
-  border-radius: var(--radius);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--line);
-  text-align: center;
-  backdrop-filter: blur(10px);
-  transition: all var(--transition);
-}
-.badge-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(56,189,248,0.3);
-}
-.badge-card strong {
-  display: block;
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--cyan);
-}
-.badge-card span {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.78rem;
-  color: rgba(232,244,255,0.6);
-}
-
 /* Hero Visual */
 .landingHeroVisual {
   display: grid;
@@ -407,16 +379,7 @@ input:focus, select:focus, textarea:focus {
 }
 .mini-chart-bar:nth-child(odd) { background: linear-gradient(180deg, var(--mint), rgba(52,211,153,0.12)); }
 
-.mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
-.mini-stat {
-  padding: 0.7rem;
-  border-radius: var(--radius);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--line);
-  text-align: center;
-}
-.mini-stat-value { display: block; font-size: 1.25rem; font-weight: 800; color: #fff; }
-.mini-stat-label { display: block; font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 0.15rem; }
+.hero-card-note { color: rgba(255,255,255,0.55); font-size: 0.85rem; line-height: 1.6; }
 
 .hero-floating-card {
   position: absolute;
@@ -515,6 +478,38 @@ input:focus, select:focus, textarea:focus {
 }
 .landingCta h2 { margin: 0; color: #f7fbff; }
 .landingCta p { margin: 0.5rem 0 0; color: rgba(232,244,255,0.58); max-width: 42rem; line-height: 1.6; }
+
+/* Footer */
+.landingFooter {
+  position: relative;
+  z-index: 1;
+  margin-top: 4rem;
+  border-top: 1px solid var(--line);
+  background: rgba(6, 15, 30, 0.6);
+}
+.landingFooterInner {
+  width: min(1200px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 2.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.landingFooterBrand { display: grid; gap: 0.75rem; max-width: 30rem; }
+.landingFooterBrand p { color: rgba(232,244,255,0.55); font-size: 0.9rem; line-height: 1.6; }
+.landingFooterNav { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; }
+.landingFooterNav a { color: rgba(232,244,255,0.72); font-size: 0.92rem; transition: color var(--transition); }
+.landingFooterNav a:hover { color: #fff; }
+.landingFooterBottom {
+  width: min(1200px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 2rem;
+  border-top: 1px solid var(--line);
+  color: rgba(232,244,255,0.45);
+  font-size: 0.82rem;
+}
 
 /* ══════════════════════════════════════════ */
 /*  LOGIN PAGE                               */
