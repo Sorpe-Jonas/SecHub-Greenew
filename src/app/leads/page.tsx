@@ -79,12 +79,17 @@ export default async function LeadsPage({
             <span className="eyebrow">Funil</span>
             <h2>Leads recebidos</h2>
           </div>
-          <div className="quickActionRow">
-            <Link className="secondaryButton" href="/leads">
+          <div className="leadFilters">
+            <Link className="filterChip" data-active={!activeStatus} href="/leads">
               Todos
             </Link>
             {leadStatusOrder.map((status) => (
-              <Link key={status} className="secondaryButton" href={`/leads?status=${status}`}>
+              <Link
+                key={status}
+                className="filterChip"
+                data-active={activeStatus === status}
+                href={`/leads?status=${status}`}
+              >
                 {leadStatusLabels[status]}
               </Link>
             ))}
@@ -96,34 +101,43 @@ export default async function LeadsPage({
             <p className="helperText">Nenhum lead recebido no momento.</p>
           ) : (
             leads.map((lead) => (
-              <div key={lead.id} className="statementCard">
-                <div className="ticketRow">
-                  <div>
+              <details key={lead.id} className="leadItem">
+                <summary className="leadSummary">
+                  <div className="leadSummaryMain">
                     <strong>{lead.name}</strong>
                     <span>{lead.companyName}</span>
-                    <span>
-                      <a href={`mailto:${lead.email}`}>{lead.email}</a> ·{" "}
-                      <a href={`tel:${lead.phone}`}>{lead.phone}</a>
+                  </div>
+                  <div className="leadSummaryMeta">
+                    <span className={`leadStatus leadStatus--${lead.status}`}>
+                      {leadStatusLabels[lead.status]}
+                    </span>
+                    <span className="leadDate">{lead.createdAt.toLocaleString("pt-BR")}</span>
+                    <span className="leadChevron" aria-hidden="true">
+                      ▾
                     </span>
                   </div>
-                  <div>
-                    <strong>{leadStatusLabels[lead.status]}</strong>
-                    <span>{lead.createdAt.toLocaleString("pt-BR")}</span>
+                </summary>
+
+                <div className="leadBody">
+                  <div className="leadContacts">
+                    <a href={`mailto:${lead.email}`}>{lead.email}</a>
+                    <a href={`tel:${lead.phone}`}>{lead.phone}</a>
+                  </div>
+
+                  <p className="helperText">{lead.description}</p>
+
+                  {lead.meetingAt ? (
+                    <p className="helperText">
+                      Reuniao agendada para {lead.meetingAt.toLocaleString("pt-BR")}.
+                    </p>
+                  ) : null}
+
+                  <div className="ticketDetailGrid">
+                    <LeadStatusForm leadId={lead.id} status={lead.status} />
+                    <LeadMeetingForm leadId={lead.id} meetingHtmlLink={lead.meetingHtmlLink} />
                   </div>
                 </div>
-
-                <p className="helperText">{lead.description}</p>
-                {lead.meetingAt ? (
-                  <p className="helperText">
-                    Reuniao agendada para {lead.meetingAt.toLocaleString("pt-BR")}.
-                  </p>
-                ) : null}
-
-                <div className="ticketDetailGrid">
-                  <LeadStatusForm leadId={lead.id} status={lead.status} />
-                  <LeadMeetingForm leadId={lead.id} meetingHtmlLink={lead.meetingHtmlLink} />
-                </div>
-              </div>
+              </details>
             ))
           )}
         </div>

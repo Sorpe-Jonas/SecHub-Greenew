@@ -28,7 +28,7 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -203,9 +203,15 @@ input:focus, select:focus, textarea:focus {
 /* ══════════════════════════════════════════ */
 .landing-wrapper {
   position: relative;
-  overflow: hidden;
 }
-.landingContainer { position: relative; z-index: 1; }
+.landingBackdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.pageShell.landingContainer { position: relative; z-index: 1; display: block; }
 
 .bg-glow {
   position: absolute;
@@ -239,6 +245,9 @@ input:focus, select:focus, textarea:focus {
 .landingShell { display: grid; gap: 5rem; padding: 2rem 0 5rem; }
 
 .landingHeader {
+  position: sticky;
+  top: 0;
+  z-index: 60;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -246,7 +255,7 @@ input:focus, select:focus, textarea:focus {
   margin: 0 auto;
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-lg);
-  background: rgba(10, 20, 40, 0.6);
+  background: rgba(10, 20, 40, 0.72);
   backdrop-filter: blur(24px);
   border: 1px solid var(--line);
   gap: 1rem;
@@ -409,6 +418,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Landing Sections */
 .landingSection { display: grid; gap: 2rem; }
+#servicos, #vantagens { scroll-margin-top: 96px; }
 .sectionHeader { text-align: center; display: grid; gap: 1rem; justify-items: center; }
 .sectionHeader h2 { font-size: clamp(2rem, 4vw, 3rem); margin: 0; max-width: 20ch; }
 
@@ -1006,6 +1016,72 @@ input:focus, select:focus, textarea:focus {
 
 .quickActionRow { display: flex; flex-wrap: wrap; gap: 0.65rem; }
 
+/* ── Leads ── */
+.supportPanel .eyebrow {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.25);
+  color: #0369a1;
+}
+
+.leadFilters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.filterChip {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 32, 51, 0.15);
+  background: rgba(16, 32, 51, 0.04);
+  color: var(--text-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+.filterChip:hover { background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.4); }
+.filterChip[data-active="true"] { background: var(--cyan); border-color: var(--cyan); color: #06121f; }
+
+.leadItem {
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: var(--radius);
+  background: rgba(16, 32, 51, 0.03);
+  overflow: hidden;
+}
+.leadItem[open] { background: #fff; box-shadow: var(--shadow-sm); }
+.leadSummary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+.leadSummary::-webkit-details-marker { display: none; }
+.leadItem[open] .leadSummary { border-bottom: 1px solid rgba(16, 32, 51, 0.08); }
+.leadSummaryMain { display: grid; gap: 0.15rem; }
+.leadSummaryMain strong { color: var(--text-dark); }
+.leadSummaryMain span { color: var(--text-soft); font-size: 0.85rem; }
+.leadSummaryMeta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.leadDate { color: var(--text-soft); font-size: 0.8rem; }
+.leadChevron { color: var(--text-soft); transition: transform var(--transition); }
+.leadItem[open] .leadChevron { transform: rotate(180deg); }
+.leadBody { display: grid; gap: 0.85rem; padding: 1rem; }
+.leadContacts { display: flex; flex-wrap: wrap; gap: 1rem; }
+.leadContacts a { color: #0369a1; font-weight: 600; }
+
+.leadStatus {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.leadStatus--NEW { background: rgba(56, 189, 248, 0.16); color: #0369a1; }
+.leadStatus--IN_PROGRESS { background: rgba(251, 191, 36, 0.2); color: #b45309; }
+.leadStatus--WAITING_CONTRACT { background: rgba(167, 139, 250, 0.2); color: #6d28d9; }
+.leadStatus--SIGNED { background: rgba(52, 211, 153, 0.2); color: #047857; }
+.leadStatus--ACTIVE_CLIENT { background: rgba(34, 197, 94, 0.22); color: #15803d; }
+.leadStatus--LOST { background: rgba(148, 163, 184, 0.25); color: #475569; }
+
 .checkboxRow { display: flex !important; align-items: center; gap: 0.65rem; color: var(--text-dark); }
 .checkboxRow input { width: auto; }
 
@@ -1086,4 +1162,5 @@ input:focus, select:focus, textarea:focus {
   .landingNav { justify-content: center; }
   .heroActions { width: 100%; flex-direction: column; }
   .heroBadges { grid-template-columns: repeat(2, 1fr); }
+  #servicos, #vantagens { scroll-margin-top: 150px; }
 }

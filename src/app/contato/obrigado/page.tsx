@@ -6,8 +6,10 @@ import { SiteHeader } from "@/components/landing/site-header";
 export default function ContactThanksPage() {
   return (
     <div className="landing-wrapper">
-      <div className="bg-glow bg-glow--top-left" />
-      <div className="bg-grid" />
+      <div className="landingBackdrop" aria-hidden="true">
+        <div className="bg-glow bg-glow--top-left" />
+        <div className="bg-grid" />
+      </div>
 
       <main className="pageShell landingContainer">
         <SiteHeader />

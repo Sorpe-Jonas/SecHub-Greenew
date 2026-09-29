@@ -5,9 +5,11 @@ import { LeadCaptureForm } from "@/components/leads/lead-capture-form";
 export default function ContactPage() {
   return (
     <div className="landing-wrapper">
-      <div className="bg-glow bg-glow--top-left" />
-      <div className="bg-glow bg-glow--bottom-right" />
-      <div className="bg-grid" />
+      <div className="landingBackdrop" aria-hidden="true">
+        <div className="bg-glow bg-glow--top-left" />
+        <div className="bg-glow bg-glow--bottom-right" />
+        <div className="bg-grid" />
+      </div>
 
       <main className="pageShell landingContainer">
         <SiteHeader />
