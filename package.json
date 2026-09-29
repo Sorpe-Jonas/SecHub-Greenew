@@ -20,6 +20,7 @@
     "@aws-sdk/client-s3": "^3.1005.0",
     "@prisma/client": "^6.17.1",
     "bcryptjs": "^3.0.3",
+    "googleapis": "^182.0.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
     "nodemailer": "^7.0.13",

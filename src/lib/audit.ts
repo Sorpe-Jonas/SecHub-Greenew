@@ -11,6 +11,7 @@ export const auditModuleLabels: Record<AuditModule, string> = {
   FINANCIAL: "Financeiro",
   NOTIFICATION: "Notificacoes",
   SETTINGS: "Configuracoes",
+  LEAD: "Leads",
 };
 
 type AuditFilterInput = {

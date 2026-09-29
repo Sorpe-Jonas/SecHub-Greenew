@@ -110,6 +110,46 @@ export async function saveAuth0SettingsAction(
   return { success: "Configuracoes do Auth0 salvas." };
 }
 
+export async function saveGoogleSettingsAction(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireSettingsUser();
+  const current = await getPlatformRuntimeConfig();
+  const clientId = getValue(formData, "clientId");
+  const clientSecret = getValue(formData, "clientSecret");
+  const calendarId = getValue(formData, "calendarId") || "primary";
+  const timeZone = getValue(formData, "timeZone") || "America/Sao_Paulo";
+
+  await saveGlobalSetting(
+    "google_settings",
+    {
+      clientId,
+      calendarId,
+      timeZone,
+      clientSecretEncrypted: clientSecret
+        ? writeEncryptedValue(clientSecret)
+        : writeEncryptedValue(current.google.clientSecret),
+    },
+    user.id,
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: user.companyId,
+      userId: user.id,
+      module: AuditModule.SETTINGS,
+      action: "google_settings_saved",
+      entityType: "global_setting",
+      entityId: "google_settings",
+      description: "Configuracoes de OAuth do Google Calendar atualizadas.",
+    },
+  });
+
+  revalidatePath("/settings");
+  return { success: "Configuracoes do Google Calendar salvas." };
+}
+
 export async function savePlatformUrlsAction(
   _prevState: SettingsFormState,
   formData: FormData,

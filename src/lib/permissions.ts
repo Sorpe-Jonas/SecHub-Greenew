@@ -11,6 +11,7 @@ export const blockLabels: Record<BlockKey, string> = {
   COMPANIES: "Empresas",
   AUDIT: "Auditoria",
   SETTINGS: "Configuracoes",
+  LEADS: "Leads",
 };
 
 export function getDefaultBlocksForRole(role: UserRole) {

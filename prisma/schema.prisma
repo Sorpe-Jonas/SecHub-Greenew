@@ -35,6 +35,7 @@ enum BlockKey {
   COMPANIES
   AUDIT
   SETTINGS
+  LEADS
 }
 
 enum AuditModule {
@@ -48,6 +49,7 @@ enum AuditModule {
   FINANCIAL
   NOTIFICATION
   SETTINGS
+  LEAD
 }
 
 enum TicketCategory {
@@ -128,6 +130,15 @@ enum InvitationStatus {
   CANCELED
 }
 
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  WAITING_CONTRACT
+  SIGNED
+  ACTIVE_CLIENT
+  LOST
+}
+
 model Company {
   id                     String                        @id @default(cuid())
   name                   String
@@ -186,6 +197,8 @@ model User {
   updatedGlobalSettings        GlobalSetting[]
   createdInvitations           UserInvitation[]      @relation("InvitationCreatedBy")
   receivedInvitations          UserInvitation[]      @relation("InvitationInvitedUser")
+  createdLeadMeetings          Lead[]                @relation("LeadMeetingCreatedBy")
+  googleCalendarConnection     GoogleCalendarConnection?
 }
 
 model CompanyBlockPermission {
@@ -545,6 +558,41 @@ model UserInvitation {
   invitedUser    User?            @relation("InvitationInvitedUser", fields: [invitedUserId], references: [id], onDelete: SetNull)
 
   @@index([companyId, email, status])
+}
+
+model Lead {
+  id                 String     @id @default(cuid())
+  name               String
+  phone              String
+  companyName        String
+  email              String
+  description        String     @db.Text
+  status             LeadStatus @default(NEW)
+  source             String?    @default("landing")
+  meetingAt          DateTime?
+  meetingDurationMin Int?
+  meetingEventId     String?
+  meetingHtmlLink    String?
+  meetingCreatedById String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  meetingCreatedBy   User?      @relation("LeadMeetingCreatedBy", fields: [meetingCreatedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model GoogleCalendarConnection {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  googleEmail           String?
+  accessTokenEncrypted  String    @db.Text
+  refreshTokenEncrypted String    @db.Text
+  expiryDate            DateTime?
+  scope                 String?
+  calendarId            String    @default("primary")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {

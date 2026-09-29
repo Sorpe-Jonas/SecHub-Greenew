@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/audit",
   "/settings",
   "/users",
+  "/leads",
 ];
 
 export default auth((request) => {
@@ -52,5 +53,6 @@ export const config = {
     "/audit/:path*",
     "/settings/:path*",
     "/users/:path*",
+    "/leads/:path*",
   ],
 };

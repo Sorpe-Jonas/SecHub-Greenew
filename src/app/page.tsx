@@ -94,6 +94,7 @@ export default function Home() {
           <nav className="landingNav">
             <Link href="#servicos">Serviços</Link>
             <Link href="#vantagens">Vantagens</Link>
+            <Link href="/contato">Contato</Link>
             <Link className="loginHeaderButton" href="/login">
               Entrar
             </Link>
@@ -121,6 +122,9 @@ export default function Home() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
+              </Link>
+              <Link className="secondaryButton" href="/contato">
+                Falar com um especialista
               </Link>
               <Link className="secondaryButton" href="#servicos">
                 Ver serviços
@@ -244,12 +248,17 @@ export default function Home() {
               e melhorar o suporte imediatamente.
             </p>
           </div>
-          <Link className="primaryButton cta-button" href="/login">
-            Entrar no portal
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </Link>
+          <div className="heroActions">
+            <Link className="primaryButton cta-button" href="/contato">
+              Falar com um especialista
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+            <Link className="secondaryButton" href="/login">
+              Entrar no portal
+            </Link>
+          </div>
         </section>
       </main>
     </div>

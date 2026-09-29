@@ -90,6 +90,14 @@ export const dashboardCards: DashboardCard[] = [
     tone: "cyan",
     roles: [UserRole.SUPER_ADMIN],
   },
+  {
+    block: BlockKey.LEADS,
+    title: "Leads",
+    description: "Capturas do site, funil de clientes e agendamento de reunioes.",
+    href: "/leads",
+    tone: "cyan",
+    roles: [UserRole.SUPER_ADMIN],
+  },
 ];
 
 export function getVisibleCards(

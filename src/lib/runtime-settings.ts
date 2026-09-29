@@ -46,6 +46,7 @@ export async function getPlatformRuntimeConfig() {
     "telegram_settings",
     "auth0_settings",
     "object_storage_settings",
+    "google_settings",
   ]);
 
   const platform = asObject(map.get("platform_urls"));
@@ -53,6 +54,7 @@ export async function getPlatformRuntimeConfig() {
   const telegram = asObject(map.get("telegram_settings"));
   const auth0 = asObject(map.get("auth0_settings"));
   const objectStorage = asObject(map.get("object_storage_settings"));
+  const google = asObject(map.get("google_settings"));
 
   return {
     appUrl:
@@ -86,6 +88,13 @@ export async function getPlatformRuntimeConfig() {
     auth0: {
       issuer: (typeof auth0.issuer === "string" && auth0.issuer) || process.env.AUTH_AUTH0_ISSUER || "",
       clientId: (typeof auth0.clientId === "string" && auth0.clientId) || process.env.AUTH_AUTH0_ID || "",
+    },
+    google: {
+      clientId: (typeof google.clientId === "string" && google.clientId) || process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret:
+        readEncryptedValue(google.clientSecretEncrypted) || process.env.GOOGLE_CLIENT_SECRET || "",
+      calendarId: (typeof google.calendarId === "string" && google.calendarId) || "primary",
+      timeZone: (typeof google.timeZone === "string" && google.timeZone) || "America/Sao_Paulo",
     },
     objectStorage: {
       enabled: Boolean(objectStorage.enabled),

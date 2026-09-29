@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import {
   saveAuth0SettingsAction,
+  saveGoogleSettingsAction,
   saveObjectStorageSettingsAction,
   savePlatformUrlsAction,
   saveSessionSettingsAction,
@@ -35,6 +36,7 @@ export default async function SettingsPage() {
           "smtp_settings",
           "telegram_settings",
           "object_storage_settings",
+          "google_settings",
         ],
       },
     },
@@ -45,6 +47,7 @@ export default async function SettingsPage() {
   const smtp = (settings.find((item) => item.key === "smtp_settings")?.value as Record<string, unknown> | undefined) ?? {};
   const telegram = (settings.find((item) => item.key === "telegram_settings")?.value as Record<string, unknown> | undefined) ?? {};
   const objectStorage = (settings.find((item) => item.key === "object_storage_settings")?.value as Record<string, unknown> | undefined) ?? {};
+  const google = (settings.find((item) => item.key === "google_settings")?.value as Record<string, unknown> | undefined) ?? {};
 
   return (
     <AppShell
@@ -226,6 +229,47 @@ export default async function SettingsPage() {
             }
           />
         </section>
+      </section>
+
+      <section className="supportPanel">
+        <div className="panelHeader">
+          <div>
+            <span className="eyebrow">Google Calendar</span>
+            <h2>OAuth para agendamento</h2>
+          </div>
+        </div>
+        <SettingsForm
+          action={saveGoogleSettingsAction}
+          submitLabel="Salvar Google"
+          fields={
+            <>
+              <label>
+                Client ID
+                <input name="clientId" type="text" defaultValue={runtime.google.clientId} />
+              </label>
+              <label>
+                Client Secret
+                <input
+                  name="clientSecret"
+                  type="password"
+                  defaultValue=""
+                  placeholder={runtime.google.clientSecret ? "Ja cadastrado. Preencha apenas para trocar." : "Client secret do OAuth"}
+                />
+              </label>
+              <label>
+                Calendar ID
+                <input name="calendarId" type="text" defaultValue={String(google.calendarId || "primary")} />
+              </label>
+              <label>
+                Timezone
+                <input name="timeZone" type="text" defaultValue={String(google.timeZone || "America/Sao_Paulo")} />
+              </label>
+              <p className="helperText">
+                Redirect URI para cadastrar no Google Cloud: {runtime.appUrl}/api/integrations/google/callback
+              </p>
+            </>
+          }
+        />
       </section>
 
       <section className="ticketDetailGrid">
