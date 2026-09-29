@@ -511,6 +511,22 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.82rem;
 }
 
+/* Contact */
+.contactSection { display: grid; gap: 2rem; justify-items: center; padding: 1rem 0 3rem; }
+.contactTitle { font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.05; max-width: 22ch; }
+.contactSubtitle { color: rgba(232,244,255,0.72); max-width: 40rem; line-height: 1.7; }
+.contactCard {
+  width: 100%;
+  max-width: 640px;
+  padding: 2rem;
+  border-radius: var(--radius-xl);
+  background: rgba(12, 24, 45, 0.82);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+}
+.contactCard .authForm { gap: 1rem; }
+.contactCard .authForm label { color: rgba(232,244,255,0.82); }
+
 /* ══════════════════════════════════════════ */
 /*  LOGIN PAGE                               */
 /* ══════════════════════════════════════════ */

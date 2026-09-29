@@ -1,20 +1,4 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: sechub
-      POSTGRES_USER: sechub
-      POSTGRES_PASSWORD: sechub
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - traefik-public
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   app:
     build:
       context: .
@@ -24,24 +8,12 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       HOSTNAME: 0.0.0.0
       PORT: 3000
-      DATABASE_URL: postgresql://sechub:sechub@db:5432/sechub
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/app}
       AUTH_SECRET: ${AUTH_SECRET:-change-me}
       PASSWORD_ENCRYPTION_SECRET: ${PASSWORD_ENCRYPTION_SECRET:-change-me}
       PASSWORD: ${PASSWORD:-change-me}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "3000:3000"
     restart: unless-stopped
-    networks:
-      - traefik-public
-
-volumes:
-  postgres_data:
-
-networks:
-  traefik-public:
-    external: true
