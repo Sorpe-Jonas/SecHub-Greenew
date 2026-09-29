@@ -3,6 +3,7 @@ import { securityHeaders } from "@/lib/security";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["googleapis"],
   async headers() {
     return [
       {
